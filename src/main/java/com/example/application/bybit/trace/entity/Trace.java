@@ -1,7 +1,8 @@
 package com.example.application.bybit.trace.entity;
 
-import com.example.application.bybit.member.Member;
 import lombok.*;
+
+import com.example.application.member.*;
 
 import javax.persistence.*;
 import java.util.ArrayList;
@@ -19,8 +20,7 @@ public class Trace {
     private Integer idx;
 
     @ManyToOne
-    @JoinColumn(name = "member_idx", referencedColumnName = "id")
-    @Column(nullable = false)
+    @JoinColumn(name = "member_idx", referencedColumnName = "idx", nullable = false)
     private Member member;
 
     @Column(nullable = false)
@@ -28,9 +28,9 @@ public class Trace {
 
     private Integer maxLevel = 0;
 
-    private boolean isBuy = true;
-    private boolean isEnd = false;
-    private boolean isCancel = false;
+    private boolean buyFlag = true;
+    private boolean endFlag = false;
+    private boolean cancelFlag = false;
 
     @OneToMany(mappedBy = "trace")
     public List<TraceList> traceLists = new ArrayList<>();

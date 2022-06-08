@@ -1,9 +1,7 @@
-package com.example.application.bybit.trace.bybit;
+package com.example.application.bybit.dto.response;
 
-import com.example.application.bybit.trace.enums.SIDE;
-import com.example.application.bybit.trace.enums.SYMBOL;
-import com.example.application.bybit.trace.enums.TICK_DIRECTION;
 import lombok.Data;
+import com.example.application.bybit.enums.*;
 
 @Data
 public class BybitTraceData {

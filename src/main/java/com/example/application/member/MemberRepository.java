@@ -1,4 +1,4 @@
-package com.example.application.bybit.member;
+package com.example.application.member;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

@@ -1,30 +1,33 @@
-package com.example.application.bybit.member;
+package com.example.application.member;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
+import javax.persistence.*;
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class Member {
+public class MemberApi {
 
     @Id
     @GeneratedValue
     private Integer idx;
+
+    @ManyToOne
+    @JoinColumn(name = "member_idx", referencedColumnName = "idx")
+    public Member member;
 
     @Column(unique = true)
     private String apiKey;
 
     @Column(unique = true)
     private String secretKey;
+
+    private Integer minuteBong;
 
 }

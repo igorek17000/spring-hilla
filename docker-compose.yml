@@ -1,0 +1,14 @@
+version: "3.2"
+services:
+  mysql:
+    image: library/mysql:5.7
+    container_name: dataflow-mysql
+    environment:
+      MYSQL_DATABASE: dataflow
+      MYSQL_ROOT_PASSWORD: rootpw
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./docker/mysql/var/lib/mysql:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d

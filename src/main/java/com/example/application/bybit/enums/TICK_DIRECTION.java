@@ -1,4 +1,4 @@
-package com.example.application.bybit.trace.enums;
+package com.example.application.bybit.enums;
 
 /**
  * <p>PlusTick- 물가상승</p>

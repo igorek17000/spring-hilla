@@ -1,9 +1,7 @@
-package com.example.application.bybit.trace.bybit;
+package com.example.application.bybit.dto.response;
 
 
 import lombok.Data;
-
-import java.util.List;
 
 @Data
 public class BybitOrder {

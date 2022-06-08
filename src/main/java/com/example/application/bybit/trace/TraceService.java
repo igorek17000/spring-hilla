@@ -1,14 +1,13 @@
-package com.example.application.bybit;
+package com.example.application.bybit.trace;
 
 import com.example.application.bybit.trace.entity.Trace;
 import com.example.application.bybit.trace.entity.TraceList;
-import com.example.application.bybit.trace.TraceListRepository;
-import com.example.application.bybit.trace.TraceRepository;
-import com.example.application.bybit.trace.bybit.BybitOrder;
-import com.example.application.bybit.trace.bybit.BybitOrderData;
-import com.example.application.bybit.trace.enums.ORDER_STATUS;
-import com.example.application.bybit.trace.enums.ORDER_TYPE;
-import com.example.application.bybit.util.OrderUtil;
+import com.example.application.bybit.trace.repository.TraceListRepository;
+import com.example.application.bybit.trace.repository.TraceRepository;
+import com.example.application.bybit.dto.response.BybitOrder;
+import com.example.application.bybit.dto.response.BybitOrderData;
+import com.example.application.bybit.enums.*;
+import com.example.application.bybit.util.BybitOrderUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -27,16 +26,17 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class BybitService {
+public class TraceService {
 
     private final TraceRepository traceRepository;
     private final TraceListRepository traceListRepository;
+
     private List<ORDER_STATUS> searchOrderType = List.of(ORDER_STATUS.PendingCancel, ORDER_STATUS.PartiallyFilled, ORDER_STATUS.Created);
 
     // 초기 데이터 조회
     public Optional<Trace> dataSet(Integer memberIdx, Integer minuteBong){
         // traces Table 조회
-        return traceRepository.findByEndAndMinuteBongAndMember_Idx(
+        return traceRepository.findByEndFlagAndMinuteBongAndMember_Idx(
                 false,
                 minuteBong,
                 memberIdx
@@ -46,7 +46,7 @@ public class BybitService {
     @Transactional
     public void end( Integer idx ) {
         var traceOptional = traceRepository.findById(idx);
-        traceOptional.ifPresent(trace -> trace.setEnd(true));
+        traceOptional.ifPresent(trace -> trace.setEndFlag(true));
     }
 
 
@@ -61,7 +61,7 @@ public class BybitService {
         }
 
         // 나의 주문리스트를 조회 (Bybit Api) - 이거 이전에 취소 Api를 호출했는데 진짜 취소되었는지 대조하기위한 작업
-        var responseEntity = OrderUtil.order_list(
+        var responseEntity = BybitOrderUtil.order_list(
                 apiKey,
                 secretKey,
                 ORDER_STATUS.Cancelled.toString()
@@ -104,7 +104,7 @@ public class BybitService {
                     Trace trace = traceLists.get(0).getTrace();
                     // trace 에 trace List 가 모두 취소되었을때 Master 테이블에 isCancel true update query
                     if (traceLists.stream().allMatch(traceData -> traceData.getOrderStatus().equals(ORDER_STATUS.Cancelled))){
-                        trace.setCancel(true);
+                        trace.setCancelFlag(true);
                     }
                     return trace;
                 }
@@ -118,17 +118,18 @@ public class BybitService {
     }
 
     @Transactional
-    public TraceList traceListDataUpdate(
+    public TraceList traceListDataUpdate (
             TraceList traceListParam,
             String apiKey,
-            String secretKey) {
+            String secretKey
+    ) {
 
         var traceListOptional = traceListRepository.findById(traceListParam.getIdx());
         if (traceListOptional.isEmpty()) {
             return traceListParam;
         }
 
-        var responseEntity = OrderUtil.order_list(
+        var responseEntity = BybitOrderUtil.order_list(
                 apiKey,
                 secretKey,
                 ORDER_STATUS.Filled.toString()

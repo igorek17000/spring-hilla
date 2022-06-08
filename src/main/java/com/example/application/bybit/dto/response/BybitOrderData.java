@@ -1,10 +1,8 @@
-package com.example.application.bybit.trace.bybit;
+package com.example.application.bybit.dto.response;
 
 
-import com.example.application.bybit.trace.enums.*;
 import lombok.Data;
-
-import java.util.List;
+import com.example.application.bybit.enums.*;
 
 @Data
 public class BybitOrderData {

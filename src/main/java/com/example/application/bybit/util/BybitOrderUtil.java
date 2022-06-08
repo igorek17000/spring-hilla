@@ -1,8 +1,8 @@
 package com.example.application.bybit.util;
 
-import com.example.application.bybit.trace.enums.ORDER_TYPE;
-import com.example.application.bybit.trace.enums.SIDE;
-import com.example.application.bybit.trace.enums.TIME_IN_FORCE;
+import com.example.application.bybit.enums.ORDER_TYPE;
+import com.example.application.bybit.enums.SIDE;
+import com.example.application.bybit.enums.TIME_IN_FORCE;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
@@ -14,7 +14,7 @@ import java.util.Comparator;
 import java.util.TreeMap;
 
 @Slf4j
-public class OrderUtil {
+public class BybitOrderUtil {
     private final static String order_url= "https://api-testnet.bybit.com/v2/private/order/create?";
     private final static String position_url = "https://api.bybit.com/v2/private/position/list?";
     private final static String order_list_url = "https://api.bybit.com/v2/private/order/list?";
@@ -50,7 +50,7 @@ public class OrderUtil {
         }
 
         try {
-            String queryString = Encryption.genQueryString(map, secretKey);
+            String queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.postForEntity(
@@ -92,7 +92,7 @@ public class OrderUtil {
         map.put("order_id", order_id);
 
         try {
-            String queryString = Encryption.genQueryString(map, secretKey);
+            String queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.postForEntity(
@@ -131,7 +131,7 @@ public class OrderUtil {
         map.put("order_status", order_status);
 
         try {
-            String queryString = Encryption.genQueryString(map, secretKey);
+            String queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.getForEntity(
@@ -165,7 +165,7 @@ public class OrderUtil {
     ) {
         var map = getMappingParamTreeMap(apiKey);
         try {
-            String queryString = Encryption.genQueryString(map, secretKey);
+            String queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.getForEntity(

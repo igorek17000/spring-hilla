@@ -1,6 +1,6 @@
 package com.example.application.bybit.trace.entity;
 
-import com.example.application.bybit.trace.enums.*;
+import com.example.application.bybit.enums.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,8 +21,7 @@ public class TraceList {
     private Integer idx;
 
     @ManyToOne
-    @JoinColumn(name = "trace_idx", referencedColumnName = "id")
-    @Column(nullable = false)
+    @JoinColumn(name = "trace_idx", referencedColumnName = "idx", nullable = false)
     private Trace trace;
 
     private Integer level;

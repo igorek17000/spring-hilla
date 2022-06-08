@@ -17,7 +17,7 @@ spring:
 
   jpa:
     open-in-view: true
-    database-platform: kr.co.point.MySQL5InnoDBDialectConfig
+    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
     hibernate:
       naming:
         implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyJpaCompliantImpl

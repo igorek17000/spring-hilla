@@ -1,14 +1,13 @@
 package com.example.application.bybit.trace;
 
-import com.example.application.bybit.BybitService;
-import com.example.application.bybit.trace.bybit.BybitTrace;
+import com.example.application.bybit.dto.response.BybitTrace;
 import com.example.application.bybit.trace.entity.Trace;
 import com.example.application.bybit.trace.entity.TraceList;
-import com.example.application.bybit.trace.enums.ORDER_STATUS;
-import com.example.application.bybit.trace.enums.ORDER_TYPE;
-import com.example.application.bybit.trace.enums.SIDE;
-import com.example.application.bybit.trace.enums.TIME_IN_FORCE;
-import com.example.application.bybit.util.OrderUtil;
+import com.example.application.bybit.enums.ORDER_STATUS;
+import com.example.application.bybit.enums.ORDER_TYPE;
+import com.example.application.bybit.enums.SIDE;
+import com.example.application.bybit.enums.TIME_IN_FORCE;
+import com.example.application.bybit.util.BybitOrderUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -28,14 +27,14 @@ import java.util.stream.Stream;
 public class TraceHandler extends TextWebSocketHandler {
     Trace trace;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final BybitService bybitService;
+    private final TraceService traceService;
     private final String secretKey;
     private final String apiKey;
     private final Integer memberIdx;
     private final Integer minuteBong;
 
     public TraceHandler (
-            BybitService bybitService,
+            TraceService traceService,
             String secretKey,
             String apiKey,
             Integer idx,
@@ -44,13 +43,13 @@ public class TraceHandler extends TextWebSocketHandler {
     ) {
         super();
 
-        this.bybitService = bybitService;
+        this.traceService = traceService;
         this.secretKey = secretKey;
         this.apiKey = apiKey;
         this.memberIdx = idx;
         this.minuteBong = minuteBong;
 
-        var optionalTrace = bybitService.dataSet(memberIdx, minuteBong);
+        var optionalTrace = traceService.dataSet(memberIdx, minuteBong);
 
         if (optionalTrace.isEmpty()) {
             // Slack 알람
@@ -72,7 +71,7 @@ public class TraceHandler extends TextWebSocketHandler {
         // 2. 연결이 끊긴 경우 최대한 빨리 다시 연결
         // session.sendMessage(new TextMessage("{\"op\":\"ping\"}"));
         if (trace == null) {
-            var optionalTrace = bybitService.dataSet(memberIdx, minuteBong);
+            var optionalTrace = traceService.dataSet(memberIdx, minuteBong);
 
             if (optionalTrace.isEmpty()) {
                 // Slack 알람
@@ -82,7 +81,7 @@ public class TraceHandler extends TextWebSocketHandler {
             trace = optionalTrace.get();
         }
 
-        bybitService.traceDataStart(session);
+        traceService.traceDataStart(session);
 
         try {
             super.afterConnectionEstablished(session);
@@ -139,7 +138,7 @@ public class TraceHandler extends TextWebSocketHandler {
                 }
 
                 // true 공매수, false 공매도
-                boolean isBuy = trace.isBuy();
+                boolean isBuy = trace.isBuyFlag();
 
                 // 구매한 데이터 가져옴
                 TraceList traceList = trace.getTraceLists().get(nowIdx);
@@ -164,12 +163,12 @@ public class TraceHandler extends TextWebSocketHandler {
                             .collect(Collectors.toList())
                             .get(0);
 
-                    TraceList traceData = bybitService.traceListDataUpdate(traceListParam, apiKey, secretKey);
+                    TraceList traceData = traceService.traceListDataUpdate(traceListParam, apiKey, secretKey);
                     trace.getTraceLists().remove(traceData);
                     trace.getTraceLists().add(traceData);
 
                     if (i == trace.getMaxLevel()) {
-                        bybitService.end(trace.getIdx());
+                        traceService.end(trace.getIdx());
 
                         close(session);
                     }
@@ -230,7 +229,7 @@ public class TraceHandler extends TextWebSocketHandler {
         // 가져온 데이터를 이용하여 Bybit Api 호출 (실질적으로 취소)
         filterStream.forEach(
                 traceData -> {
-                    ResponseEntity<?> responseEntity = OrderUtil.order_cancel(apiKey, secretKey, traceData.getOrderLinkId());
+                    ResponseEntity<?> responseEntity = BybitOrderUtil.order_cancel(apiKey, secretKey, traceData.getOrderLinkId());
                     if (responseEntity == null || (!HttpStatus.OK.equals(responseEntity.getStatusCode())) ){
 
                         // 주문취소 실패시 Slack 알림
@@ -239,11 +238,11 @@ public class TraceHandler extends TextWebSocketHandler {
         );
 
         // 2. 데이터 조회 후 값 Update
-        trace = bybitService.traceCancelUpdate(trace, apiKey, secretKey);
+        trace = traceService.traceCancelUpdate(trace, apiKey, secretKey);
 
         // 3. 시장가 bybit
         // TODO: ERROR 처리 고려
-        OrderUtil.order(
+        BybitOrderUtil.order(
                 apiKey,
                 secretKey,
 
@@ -252,14 +251,14 @@ public class TraceHandler extends TextWebSocketHandler {
                                         // /v2/private/wallet/balance
                                         // available_balance
 
-                trace.isBuy() ? SIDE.Sell : SIDE.Buy,
+                trace.isBuyFlag() ? SIDE.Sell : SIDE.Buy,
                 TIME_IN_FORCE.GoodTillCancel,
                 0,
                 ORDER_TYPE.Market
         );
 
         // 4. 테이블 완료 처리
-        bybitService.end(trace.getIdx());
+        traceService.end(trace.getIdx());
 
         // Slack 알람 전송
 

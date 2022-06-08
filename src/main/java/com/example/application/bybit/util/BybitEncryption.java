@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 
-public class Encryption {
+public class BybitEncryption {
 
     public static String genQueryString (
             TreeMap<String, String> params,

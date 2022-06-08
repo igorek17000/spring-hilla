@@ -1,4 +1,4 @@
-package com.example.application.bybit.trace.enums;
+package com.example.application.bybit.enums;
 
 /**
  * <p>Market 시장가</p>
