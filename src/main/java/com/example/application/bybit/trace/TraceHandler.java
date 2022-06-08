@@ -18,6 +18,7 @@ import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,7 +31,7 @@ public class TraceHandler extends TextWebSocketHandler {
     private final BybitService bybitService;
     private final String secretKey;
     private final String apiKey;
-    private final Integer memeberIdx;
+    private final Integer memberIdx;
     private final Integer minuteBong;
 
     public TraceHandler (
@@ -46,10 +47,10 @@ public class TraceHandler extends TextWebSocketHandler {
         this.bybitService = bybitService;
         this.secretKey = secretKey;
         this.apiKey = apiKey;
-        this.memeberIdx = idx;
+        this.memberIdx = idx;
         this.minuteBong = minuteBong;
 
-        var optionalTrace = bybitService.dataSet(memeberIdx, minuteBong);
+        var optionalTrace = bybitService.dataSet(memberIdx, minuteBong);
 
         if (optionalTrace.isEmpty()) {
             // Slack 알람
@@ -71,7 +72,7 @@ public class TraceHandler extends TextWebSocketHandler {
         // 2. 연결이 끊긴 경우 최대한 빨리 다시 연결
         // session.sendMessage(new TextMessage("{\"op\":\"ping\"}"));
         if (trace == null) {
-            var optionalTrace = bybitService.dataSet(memeberIdx, minuteBong);
+            var optionalTrace = bybitService.dataSet(memberIdx, minuteBong);
 
             if (optionalTrace.isEmpty()) {
                 // Slack 알람
@@ -100,123 +101,80 @@ public class TraceHandler extends TextWebSocketHandler {
 
         try {
 
+            // 실시간 데이터
             var bybitTrace = objectMapper.readValue(message.getPayload(), BybitTrace.class);
 
             log.info("objectMapper: " + bybitTrace.toString());
 
-            // TODO: 확인해야하는 것 (Buy, Sell 이든 금액을 가져오면 되는건지?)
+            // 현재 가격
             var nowPrice = bybitTrace.getData().get(0).getPrice();
 
+            // DB 에서 조회한 데이터
             var traceLists = trace.getTraceLists();
 
-            // Lv -> 0, 1, 2, 3
-            // [0 구매], [1,2,3 지점 판매]
-            if (traceLists.stream().filter( traceList -> traceList.getLevel().equals(0) && traceList.getOrderType().equals(ORDER_TYPE.Limit)).count() == 1) {
+            // 구매 데이터가 없는 경우 || 구매 데이터가 더 많은 경우
+            if (traceLists.stream().filter(traceList -> traceList.getLevel().equals(0)).count() != 1) {
                 // Slack 알람
 
                 close(session);
-                throw new RuntimeException("데이터가 이상합니다. (구매기준 지정가 데이터는 한개만 존재해야함)");
+                throw new RuntimeException("데이터가 이상합니다. (구매 기준 데이터는 한개만 존재해야함)");
             }
 
-            if (traceLists.stream().filter( traceList -> traceList.getLevel().equals(1) && traceList.getOrderType().equals(ORDER_TYPE.Limit)).count() == 1) {
-                // Slack 알람
-
-                close(session);
-                throw new RuntimeException("데이터가 이상합니다. (첫번째 지정가 데이터는 한개만 존재해야함)");
-            }
-
-            if (traceLists.stream().filter( traceList -> traceList.getLevel().equals(2) && traceList.getOrderType().equals(ORDER_TYPE.Limit)).count() == 1) {
-                // Slack 알람
-
-                close(session);
-                throw new RuntimeException("데이터가 이상합니다. (두번째 지정가 데이터는 한개만 존재해야함)");
-            }
-
-            if (traceLists.stream().filter( traceList -> traceList.getLevel().equals(3) && traceList.getOrderType().equals(ORDER_TYPE.Limit)).count() == 1) {
-                // Slack 알람
-
-                close(session);
-                throw new RuntimeException("데이터가 이상합니다. (세번째 지정가 데이터는 한개만 존재해야함)");
-            }
-
-            var stopLossPrice = trace.getStopLossPrice(); /* 손절 가격  */
-            var basePrice     = trace.getPrice();         /* 구매가격   */
-            var onePrice      = trace.getOnePrice();      /* 1차 판매가격*/
-            var twoPrice      = trace.getTwoPrice();      /* 2차 판매가격*/
-            var threePrice    = trace.getThreePrice();    /* 3차 판매가격*/
-
-            boolean isBuy = trace.isBuy();
-
-            if (isBuy ? stopLossPrice >= nowPrice : stopLossPrice <= nowPrice) {
-
-                // 손절 - 거래 취소 후 모든 금액 팔기 [거래 종료]
-                stopLoss(session, traceLists);
-
-            } else if (trace.getOneOk().equals("N")) {
-
-                if (isBuy ? onePrice <= nowPrice : onePrice >= nowPrice) {
-
-                    // 구매되었는지 확인 Lv1
-                    // 구매되었으면 테이블 Update 처리, List 해당 trace 에 oneYn Update
-                    var traceListParam = traceLists
+            // trace Level 정렬
+            trace.setTraceLists(
+                    trace.getTraceLists()
                             .stream()
-                            .filter(traceList -> traceList.getLevel().equals(1) && traceList.getOrderType().equals(ORDER_TYPE.Limit))
+                            .sorted(Comparator.comparing(TraceList::getLevel))
                             .collect(Collectors.toList())
-                            .get(0);
+            );
 
-                    TraceList traceList = bybitService.traceListDataUpdate(trace, traceListParam, apiKey, secretKey,1);
-                    trace.getTraceLists().remove(traceListParam);
-                    trace.getTraceLists().add(traceList);
+            // Level 갯수만큼 반복
+            for (int i = 1; i <= trace.getMaxLevel(); i++) {
 
+                // 지정가가 무조건 한개만 있어야하는데 데이터가 없거나 여러 개인경우 에러
+                int nowIdx = i;
+                if (traceLists.stream().filter(traceList -> traceList.getLevel().equals(nowIdx) && traceList.getOrderType().equals(ORDER_TYPE.Limit)).count() != 1) {
+                    close(session);
+                    throw new RuntimeException("데이터가 이상합니다. ( [" + i + "]번째 지정가 데이터는 한개만 존재해야함)");
                 }
 
-            } else if ( trace.getOneOk().equals("Y") && trace.getTwoOk().equals("N") ) {
+                // true 공매수, false 공매도
+                boolean isBuy = trace.isBuy();
 
-                if ( isBuy ? basePrice >= nowPrice : basePrice <= nowPrice ) {
+                // 구매한 데이터 가져옴
+                TraceList traceList = trace.getTraceLists().get(nowIdx);
 
-                    // 손절 - 거래 취소 후 나머지 50퍼 금액 팔기 [거래 종료]
-                    stopLoss(session, traceLists);
+                if (isBuy ? traceList.getStopLossPrice() >= nowPrice : traceList.getStopLossPrice() <= nowPrice) {
 
-                } else if(isBuy ? twoPrice >= nowPrice : twoPrice <= nowPrice) {
-                    var traceListParam = traceLists
-                            .stream()
-                            .filter(traceList -> traceList.getLevel().equals(2) && traceList.getOrderType().equals(ORDER_TYPE.Limit))
-                            .collect(Collectors.toList())
-                            .get(0);
-
-                    TraceList traceList = bybitService.traceListDataUpdate(trace, traceListParam, apiKey, secretKey,2);
-                    trace.getTraceLists().remove(traceListParam);
-                    trace.getTraceLists().add(traceList);
-                }
-
-            } else {
-
-                if ( isBuy ? onePrice >= nowPrice : onePrice <= nowPrice ) {
-
-                    // 손절 - 거래 취소 후 나머지 25퍼 금액 팔기 [거래 종료]
+                    // 손절 - 거래 취소 후 모든 금액 팔기 [거래 종료]
                     stopLoss(session, traceLists);
 
                     close(session);
 
-                } else if(isBuy ? threePrice >= nowPrice : threePrice <= nowPrice) {
+                }
 
-                    // 구매되었는지 조회 Lv3
-                    // 구매되었으면 테이블 Update 처리, List 해당 trace 에 threeYn Update
-                    // [거래 종료]
+                if (traceList.isOk()) {
+
+                } else if (isBuy ? traceList.getPrice() <= nowPrice : traceList.getPrice() >= nowPrice) {
+
+                    // 정상적으로 판매가 되었는지 확인하는 과정이 있어야함
                     var traceListParam = traceLists
                             .stream()
-                            .filter(traceList -> traceList.getLevel().equals(3) && traceList.getOrderType().equals(ORDER_TYPE.Limit))
+                            .filter(traceData -> traceData.getLevel().equals(nowIdx) && traceData.getOrderType().equals(ORDER_TYPE.Limit))
                             .collect(Collectors.toList())
                             .get(0);
 
-                    TraceList traceList = bybitService.traceListDataUpdate(trace, traceListParam, apiKey, secretKey,3);
-                    trace.getTraceLists().remove(traceListParam);
-                    trace.getTraceLists().add(traceList);
-                    trace.setEnd(true);
+                    TraceList traceData = bybitService.traceListDataUpdate(traceListParam, apiKey, secretKey);
+                    trace.getTraceLists().remove(traceData);
+                    trace.getTraceLists().add(traceData);
 
-                    // Slack 알람 전송
+                    if (i == trace.getMaxLevel()) {
+                        bybitService.end(trace.getIdx());
 
-                    close(session);
+                        close(session);
+                    }
+                } else {
+                    break;
                 }
             }
 
@@ -261,14 +219,20 @@ public class TraceHandler extends TextWebSocketHandler {
     }
 
     private void stopLoss(WebSocketSession session, List<TraceList> traceLists) {
-        // 1. 1차 지정가 제외 지정가 내역 취소 (ORDER_STATUS - New 가 아닌 것)
+
+        // 1. (ORDER_STATUS - Filled 가 아닌 것)
+        // 모두 취소하기위해 데이터를 가져옴
         Stream<TraceList> filterStream = traceLists.stream().filter(
-                traceList -> traceList.getOrderType().equals(ORDER_TYPE.Limit) && !traceList.getOrderStatus().equals(ORDER_STATUS.New)
+                traceList -> traceList.getOrderType().equals(ORDER_TYPE.Limit)
+                        && !(traceList.getOrderStatus().equals(ORDER_STATUS.Filled))
         );
+
+        // 가져온 데이터를 이용하여 Bybit Api 호출 (실질적으로 취소)
         filterStream.forEach(
                 traceData -> {
                     ResponseEntity<?> responseEntity = OrderUtil.order_cancel(apiKey, secretKey, traceData.getOrderLinkId());
                     if (responseEntity == null || (!HttpStatus.OK.equals(responseEntity.getStatusCode())) ){
+
                         // 주문취소 실패시 Slack 알림
                     }
                 }
@@ -279,11 +243,15 @@ public class TraceHandler extends TextWebSocketHandler {
 
         // 3. 시장가 bybit
         // TODO: ERROR 처리 고려
-        Integer totalQty = trace.getTotalQty();
         OrderUtil.order(
                 apiKey,
                 secretKey,
-                totalQty - (totalQty - filterStream.map(TraceList::getQty).reduce(0, Integer::sum)),
+
+                // TODO 확인해봐야함
+                0, // 포지션 size qty - ( 내가 가진 비트 코인 * 현재가 )
+                                        // /v2/private/wallet/balance
+                                        // available_balance
+
                 trace.isBuy() ? SIDE.Sell : SIDE.Buy,
                 TIME_IN_FORCE.GoodTillCancel,
                 0,
@@ -294,7 +262,6 @@ public class TraceHandler extends TextWebSocketHandler {
         bybitService.end(trace.getIdx());
 
         // Slack 알람 전송
-
 
         close(session);
     }

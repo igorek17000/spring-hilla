@@ -53,51 +53,61 @@ public class BybitService {
     @Transactional
     public Trace traceCancelUpdate(Trace traceParam, String apiKey, String secretKey) {
 
-        var traceLists = traceListRepository.findByOrderTypeAndOrderStatusNotAndTrace_Idx(ORDER_TYPE.Limit, ORDER_STATUS.New, traceParam.getIdx());
+        // DB Filled 제외하고 조회
+        var traceLists = traceListRepository.findByOrderTypeAndOrderStatusNotAndTrace_Idx(ORDER_TYPE.Limit, ORDER_STATUS.Filled, traceParam.getIdx());
+
         if (traceLists.size() == 0) {
             return traceParam;
         }
 
+        // 나의 주문리스트를 조회 (Bybit Api) - 이거 이전에 취소 Api를 호출했는데 진짜 취소되었는지 대조하기위한 작업
         var responseEntity = OrderUtil.order_list(
                 apiKey,
                 secretKey,
                 ORDER_STATUS.Cancelled.toString()
         );
 
+        // 통신 에러
         if (responseEntity == null || (!responseEntity.getStatusCode().equals(HttpStatus.OK))) {
             // slack 알림 전송
 
             return traceParam;
-        } else {
-            String body = Objects.requireNonNull(responseEntity.getBody()).toString();
 
+        } else {
+
+            String body = Objects.requireNonNull(responseEntity.getBody()).toString();
             ObjectMapper objectMapper = new ObjectMapper();
+
             try {
                 var bybitOrder = objectMapper.readValue(body, BybitOrder.class);
 
-                var bybitOrderLists = bybitOrder.getResult()
+                // Bybit에서 조회한 데이터 (주문번호만 추출)=
+                var bybitOrderIdLists = bybitOrder.getResult()
                         .getData()
                         .stream()
                         .map(BybitOrderData::getOrder_link_id)
                         .collect(Collectors.toList());
 
                 if (bybitOrder.getRet_msg().equals("OK")) {
+
+                    // DB 데이터
                     traceLists.forEach(
                             traceData -> {
-                                    if (bybitOrderLists.stream().anyMatch(bybitOrderData -> bybitOrderData.equals(traceData.getOrderLinkId()))){
+                                    // DB 데이터가 Bybit에서 조회한 데이터에 포함이된다면 취소 update query 를 해야 일치화를 시킬 수 있음
+                                    if (bybitOrderIdLists.stream().anyMatch(bybitOrderData -> bybitOrderData.equals(traceData.getOrderLinkId()))){
                                         traceData.setOrderStatus(ORDER_STATUS.Cancelled);
                                     }
                             }
                     );
 
+
                     Trace trace = traceLists.get(0).getTrace();
+                    // trace 에 trace List 가 모두 취소되었을때 Master 테이블에 isCancel true update query
                     if (traceLists.stream().allMatch(traceData -> traceData.getOrderStatus().equals(ORDER_STATUS.Cancelled))){
                         trace.setCancel(true);
                     }
                     return trace;
                 }
-
-
             } catch (JsonProcessingException e) {
 
                 // Slack 알림
@@ -108,7 +118,10 @@ public class BybitService {
     }
 
     @Transactional
-    public TraceList traceListDataUpdate(Trace traceParam ,TraceList traceListParam, String apiKey, String secretKey, Integer lv) {
+    public TraceList traceListDataUpdate(
+            TraceList traceListParam,
+            String apiKey,
+            String secretKey) {
 
         var traceListOptional = traceListRepository.findById(traceListParam.getIdx());
         if (traceListOptional.isEmpty()) {
@@ -118,12 +131,11 @@ public class BybitService {
         var responseEntity = OrderUtil.order_list(
                 apiKey,
                 secretKey,
-                ORDER_STATUS.New.toString()
+                ORDER_STATUS.Filled.toString()
         );
 
         if (responseEntity == null || (!responseEntity.getStatusCode().equals(HttpStatus.OK))) {
             // slack 알림 전송
-
             return traceListParam;
         } else {
             String body = Objects.requireNonNull(responseEntity.getBody()).toString();
@@ -141,26 +153,15 @@ public class BybitService {
                 if (bybitOrder.getRet_msg().equals("OK")) {
                     var traceList = traceListOptional.get();
                     if (bybitOrderLists.stream().anyMatch(bybitOrderData -> bybitOrderData.equals(traceList.getOrderLinkId()))){
-                        traceList.setOrderStatus(ORDER_STATUS.New);
-
-                        var traceOptional = traceRepository.findById(traceParam.getIdx());
-
-                        if (lv.equals(1)) {
-                            traceOptional.ifPresent(value -> value.setOneOk("Y"));
-                        } else if (lv.equals(2)) {
-                            traceOptional.ifPresent(value -> value.setTwoOk("Y"));
-                        } else if (lv.equals(3)) {
-                            if (traceOptional.isPresent()){
-                                Trace trace = traceOptional.get();
-                                trace.setEnd(true);
-                            }
-                        }
+                        traceList.setOrderStatus(ORDER_STATUS.Filled);
                     }
                     return traceList;
                 }
 
 
             } catch (JsonProcessingException e) {
+
+                e.printStackTrace();
 
                 // Slack 알림
             }

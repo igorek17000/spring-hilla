@@ -26,17 +26,8 @@ public class Trace {
     @Column(nullable = false)
     private Integer minuteBong = 1;
 
-    private Double  price = 0.0;
-    private Double  onePrice = 0.0;
-    private Double  twoPrice = 0.0;
-    private Double  threePrice = 0.0;
+    private Integer maxLevel = 0;
 
-    private Integer totalQty = 0;
-
-    private String  oneOk = "N";
-    private String  twoOk = "N";
-
-    private Double  stopLossPrice = 0.0;
     private boolean isBuy = true;
     private boolean isEnd = false;
     private boolean isCancel = false;

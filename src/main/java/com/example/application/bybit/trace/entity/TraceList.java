@@ -1,6 +1,5 @@
 package com.example.application.bybit.trace.entity;
 
-import com.example.application.bybit.trace.entity.Trace;
 import com.example.application.bybit.trace.enums.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -30,6 +29,8 @@ public class TraceList {
 
     private Long userId;
     private Double price = 0.0;
+    private Double stopLossPrice = 0.0;
+    private boolean isOk = false;
 
     // TODO: https://bybit-exchange.github.io/docs/inverse/#quantity-qty 확인해봐야함
     private Integer qty = 0;

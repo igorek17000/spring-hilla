@@ -18,7 +18,8 @@ public class BybitSocketRestController {
             @RequestParam(name = "secretKey", defaultValue = "") String secretKey,
             @RequestParam(name = "apiKey",    defaultValue = "") String apiKey,
             @PathVariable Integer idx,
-            @PathVariable Integer bong){
+            @PathVariable Integer bong
+    ){
         var client = new StandardWebSocketClient();
         var handler = new TraceHandler(bybitService, secretKey, apiKey, idx, bong);
         var connectionManager = new WebSocketConnectionManager(client, handler,"wss://stream.bybit.com/realtime");

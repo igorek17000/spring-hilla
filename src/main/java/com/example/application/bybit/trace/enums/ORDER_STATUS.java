@@ -7,7 +7,7 @@ package com.example.application.bybit.trace.enums;
  * New- 주문이 성공적으로 완료되었습니다.
  * Rejected - 거부
  * PartiallyFilled - 부분적 구매
- * Filled - TODO: ?, PartiallyFilled -> 확인해봐야하는데 어떻게 확인을 할 수 있을까요.
+ * Filled - 주문이 다 팔린 것
  * PendingCancel- 매칭 엔진이 취소 요청을 받았지만 성공적으로 취소되지 않았을 수 있습니다.
  * Cancelled - 취소
  */
