@@ -2,13 +2,13 @@ import '@vaadin/button';
 import '@vaadin/text-field';
 import '@vaadin/number-field';
 import '@vaadin/grid/vaadin-grid';
-import { html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
-import { View } from 'Frontend/views/view';
-import { Binder, field } from '@hilla/form';
-import { getGroceries, save } from 'Frontend/generated/GroceryEndpoint';
-import GroceryItem from 'Frontend/generated/com/example/application/GroceryItem';
-import GroceryItemModel from 'Frontend/generated/com/example/application/GroceryItemModel';
+import {html} from 'lit';
+import {customElement, state} from 'lit/decorators.js';
+import {View} from 'Frontend/views/view';
+import {Binder, field} from '@hilla/form';
+import {getGroceries, save} from 'Frontend/generated/GroceryEndpoint';
+import GroceryItem from 'Frontend/generated/com/example/application/grocery/GroceryItem';
+import GroceryItemModel from 'Frontend/generated/com/example/application/grocery/GroceryItemModel';
 
 @customElement('grocery-view')
 export class GroceryView extends View {
@@ -23,20 +23,19 @@ export class GroceryView extends View {
         <div>
           <vaadin-text-field
             ${field(this.binder.model.name)}
-            label="Item"> </vaadin-text-field> <!--(5)-->
+            label="Item" /> 
           <vaadin-number-field
             ${field(this.binder.model.quantity)}
             has-controls
-            label="Quantity"></vaadin-number-field> <!--(6)-->
+            label="Quantity" />
           <vaadin-button
             theme="primary"
             @click=${this.addItem}
-            ?disabled=${this.binder.invalid}>Add</vaadin-button> <!--(7)-->
+            ?disabled=${this.binder.invalid}>Add</vaadin-button> 
         </div>
 
         <h3>Grocery List</h3>
         <vaadin-grid .items="${this.groceries}" theme="row-stripes" style="max-width: 400px">
-          <!--(8)-->
           <vaadin-grid-column path="name"></vaadin-grid-column>
           <vaadin-grid-column path="quantity"></vaadin-grid-column>
         </vaadin-grid>
@@ -53,7 +52,6 @@ export class GroceryView extends View {
   }
 
   async firstUpdated() {
-    const groceries = await getGroceries();
-    this.groceries = groceries;
+    this.groceries = await getGroceries();
   }
 }

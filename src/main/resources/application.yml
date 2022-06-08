@@ -9,6 +9,26 @@ spring:
   mustache:
     check-template-location: false
 
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://localhost:3306/dataflow?useUnicode=true&characterEncoding=UTF8&useSSL=false
+    username: root
+    password: rootpw
+
+  jpa:
+    open-in-view: true
+    database-platform: kr.co.point.MySQL5InnoDBDialectConfig
+    hibernate:
+      naming:
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyJpaCompliantImpl
+      use-new-id-generator-mappings: false
+      ddl-auto: update
+    show_sql: true
+    generate-ddl: false
+    properties:
+      hibernate.format_sql: true
+    defer-datasource-initialization: true
+
 # Launch the default browser when starting the application in development mode
 vaadin:
   launch-browser: true

@@ -1,7 +1,8 @@
-package com.example.application;
+package com.example.application.grocery;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import dev.hilla.Endpoint;
 import dev.hilla.Nonnull;

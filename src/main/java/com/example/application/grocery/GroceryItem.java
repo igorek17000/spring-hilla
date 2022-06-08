@@ -1,4 +1,4 @@
-package com.example.application;
+package com.example.application.grocery;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
