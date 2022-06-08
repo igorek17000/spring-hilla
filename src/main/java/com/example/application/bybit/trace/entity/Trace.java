@@ -35,4 +35,6 @@ public class Trace {
     @OneToMany(mappedBy = "trace")
     public List<TraceList> traceLists = new ArrayList<>();
 
+    @OneToMany(mappedBy = "trace")
+    public List<TraceList> traceRates = new ArrayList<>();
 }

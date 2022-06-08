@@ -6,22 +6,22 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import javax.persistence.*;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class TraceMinuteBongBase {
+public class TraceBongBaseRate {
     @Id
     @GeneratedValue
     private Integer idx;
 
-    private Integer bong;
+    @ManyToOne
+    @JoinColumn(name = "trace_idx", referencedColumnName = "idx")
+    private Trace trace;
 
-    @OneToMany(mappedBy = "traceMinuteBongBase")
-    public List<TraceMinuteBongBaseRate> rates = new ArrayList<>();
-
+    private Double rate;
+    private Double lossRate;
+    private Integer sort;
 }
