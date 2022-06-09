@@ -1,4 +1,4 @@
-package com.example.application.bybit.dto.response;
+package com.example.application.bybit.trace.dto.response;
 
 
 import lombok.Data;

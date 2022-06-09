@@ -3,8 +3,11 @@ package com.example.application.bybit.trace.entity;
 import lombok.*;
 
 import com.example.application.member.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,6 +31,8 @@ public class Trace {
 
     private Integer maxLevel = 0;
 
+    private Double realPrice = 0.0;
+
     private boolean buyFlag = true;
     private boolean endFlag = false;
     private boolean cancelFlag = false;
@@ -36,5 +41,11 @@ public class Trace {
     public List<TraceList> traceLists = new ArrayList<>();
 
     @OneToMany(mappedBy = "trace")
-    public List<TraceList> traceRates = new ArrayList<>();
+    public List<TraceBongBaseRate> traceRates = new ArrayList<>();
+
+    @CreationTimestamp
+    private LocalDateTime createDate;
+
+    @UpdateTimestamp
+    private LocalDateTime updateDate;
 }

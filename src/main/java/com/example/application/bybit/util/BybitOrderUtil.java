@@ -1,8 +1,8 @@
 package com.example.application.bybit.util;
 
-import com.example.application.bybit.enums.ORDER_TYPE;
-import com.example.application.bybit.enums.SIDE;
-import com.example.application.bybit.enums.TIME_IN_FORCE;
+import com.example.application.bybit.trace.enums.ORDER_TYPE;
+import com.example.application.bybit.trace.enums.SIDE;
+import com.example.application.bybit.trace.enums.TIME_IN_FORCE;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
@@ -50,7 +50,7 @@ public class BybitOrderUtil {
         }
 
         try {
-            String queryString = BybitEncryption.genQueryString(map, secretKey);
+            var queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.postForEntity(
@@ -59,7 +59,7 @@ public class BybitOrderUtil {
                     String.class
             );
 
-            String body = response.getBody();
+            var body = response.getBody();
 
             log.info("order: " + response.getStatusCode());
             log.info("order: " + body);
@@ -92,7 +92,7 @@ public class BybitOrderUtil {
         map.put("order_id", order_id);
 
         try {
-            String queryString = BybitEncryption.genQueryString(map, secretKey);
+            var queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.postForEntity(
@@ -101,7 +101,7 @@ public class BybitOrderUtil {
                     String.class
             );
 
-            String body = response.getBody();
+            var body = response.getBody();
 
             log.info("order_cancel: " + response.getStatusCode());
             log.info("order_cancel: " + body);
@@ -127,11 +127,11 @@ public class BybitOrderUtil {
             String order_status
     ) {
 
-        TreeMap<String, String> map = getMappingParamTreeMap(apiKey);
+        var map = getMappingParamTreeMap(apiKey);
         map.put("order_status", order_status);
 
         try {
-            String queryString = BybitEncryption.genQueryString(map, secretKey);
+            var queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.getForEntity(
@@ -139,7 +139,7 @@ public class BybitOrderUtil {
                     String.class
             );
 
-            String body = response.getBody();
+            var body = response.getBody();
 
             log.info("order_list: " + response.getStatusCode());
             log.info("order_list: " + body);
@@ -165,7 +165,7 @@ public class BybitOrderUtil {
     ) {
         var map = getMappingParamTreeMap(apiKey);
         try {
-            String queryString = BybitEncryption.genQueryString(map, secretKey);
+            var queryString = BybitEncryption.genQueryString(map, secretKey);
 
             var template = new RestTemplate();
             var response = template.getForEntity(
@@ -173,7 +173,7 @@ public class BybitOrderUtil {
                     String.class
             );
 
-            String body = response.getBody();
+            var body = response.getBody();
 
             log.info("position: " + response.getStatusCode());
             log.info("position: " + body);

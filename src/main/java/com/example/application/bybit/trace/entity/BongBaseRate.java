@@ -15,18 +15,20 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class TraceBongBaseRate {
+public class BongBaseRate {
     @Id
     @GeneratedValue
     private Integer idx;
 
     @ManyToOne
-    @JoinColumn(name = "trace_idx", referencedColumnName = "idx")
-    private Trace trace;
+    @JoinColumn(name = "base_idx", referencedColumnName = "idx")
+    private BongBase bongBase;
 
-    private Double rate;
-    private Integer traceRate;
+    private Double rate; // 절대값[(목표가 - 현재값)]에서 증가비율
+    private Integer traceRate; // 100기준 판매량 정도
     private Double lossRate;
+
+    // 무조건 시작 1 -> TraceList Level Column 활용
     private Integer sort;
 
     @CreationTimestamp

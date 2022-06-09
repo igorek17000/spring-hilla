@@ -1,4 +1,4 @@
-package com.example.application.bybit.enums;
+package com.example.application.bybit.trace.enums;
 
 /**
  * <p>GoodTillCancel 시장가</p>

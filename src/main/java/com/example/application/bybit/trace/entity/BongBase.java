@@ -9,29 +9,30 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class TraceBongBaseRate {
+public class BongBase {
+
     @Id
     @GeneratedValue
     private Integer idx;
 
-    @ManyToOne
-    @JoinColumn(name = "trace_idx", referencedColumnName = "idx")
-    private Trace trace;
+    @OneToMany(mappedBy = "bongBase")
+    private List<BongBaseRate> rates = new ArrayList<>();
 
-    private Double rate;
-    private Integer traceRate;
-    private Double lossRate;
-    private Integer sort;
+    @Column(unique = true, nullable = false)
+    private Integer minuteBong;
 
     @CreationTimestamp
     private LocalDateTime createDate;
 
     @UpdateTimestamp
     private LocalDateTime updateDate;
+
 }

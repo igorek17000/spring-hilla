@@ -9,14 +9,31 @@ import com.example.application.member.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/bybit")
+@RequestMapping("/bybit/trace")
 public class TraceRestController {
 
     private final TraceService traceService;
     private final MemberService memberService;
 
-    @GetMapping("/trace/{memberIdx}/{minuteBong}")
-    public String connect(
+    @GetMapping("/{minuteBong}")
+    public String common_trace(
+            @PathVariable Integer minuteBong,
+            @RequestParam(name = "price", defaultValue = "0.0") Double price
+    ){
+
+        if (price.equals(0.0)) {
+            return "FAIL";
+        }
+
+        if (traceService.common_trace(minuteBong, price)){
+            return "FAIL";
+        }
+
+        return "OK";
+    }
+
+    @GetMapping("/individual/{memberIdx}/{minuteBong}")
+    public String individual_check(
             @PathVariable Integer memberIdx,
             @PathVariable Integer minuteBong
     ){
@@ -28,7 +45,7 @@ public class TraceRestController {
             var memberApi = optionalMemberApi.get();
 
             var client = new StandardWebSocketClient();
-            var handler = new TraceHandler(traceService, memberApi.getSecretKey(), memberApi.getApiKey(), memberIdx, minuteBong);
+            var handler = new TraceIndividualHandler(traceService, memberApi.getSecretKey(), memberApi.getApiKey(), memberIdx, minuteBong);
             var connectionManager = new WebSocketConnectionManager(client, handler,"wss://stream.bybit.com/realtime");
             connectionManager.start();
 
@@ -36,8 +53,5 @@ public class TraceRestController {
         }
         return "FAIL";
     }
-
-
-
 
 }

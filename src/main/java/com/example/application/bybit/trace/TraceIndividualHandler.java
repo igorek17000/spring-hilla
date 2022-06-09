@@ -1,12 +1,12 @@
 package com.example.application.bybit.trace;
 
-import com.example.application.bybit.dto.response.BybitTrace;
+import com.example.application.bybit.trace.dto.response.BybitTrace;
 import com.example.application.bybit.trace.entity.Trace;
 import com.example.application.bybit.trace.entity.TraceList;
-import com.example.application.bybit.enums.ORDER_STATUS;
-import com.example.application.bybit.enums.ORDER_TYPE;
-import com.example.application.bybit.enums.SIDE;
-import com.example.application.bybit.enums.TIME_IN_FORCE;
+import com.example.application.bybit.trace.enums.ORDER_STATUS;
+import com.example.application.bybit.trace.enums.ORDER_TYPE;
+import com.example.application.bybit.trace.enums.SIDE;
+import com.example.application.bybit.trace.enums.TIME_IN_FORCE;
 import com.example.application.bybit.util.BybitOrderUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 
 
 @Slf4j
-public class TraceHandler extends TextWebSocketHandler {
+public class TraceIndividualHandler extends TextWebSocketHandler {
     Trace trace;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final TraceService traceService;
@@ -33,7 +33,7 @@ public class TraceHandler extends TextWebSocketHandler {
     private final Integer memberIdx;
     private final Integer minuteBong;
 
-    public TraceHandler (
+    public TraceIndividualHandler(
             TraceService traceService,
             String secretKey,
             String apiKey,
@@ -59,7 +59,7 @@ public class TraceHandler extends TextWebSocketHandler {
         trace = optionalTrace.get();
     }
 
-
+    // TODO: [ 금액 조정 ] 추가해야함
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
 
@@ -196,25 +196,43 @@ public class TraceHandler extends TextWebSocketHandler {
 
 
     @Override
-    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+    public void handleTransportError(WebSocketSession session, Throwable exception)  {
 
         // Slack 알람 전송
 
         log.info("handleTransportError ID: " + session.getId());
         exception.printStackTrace();
 
-        super.handleTransportError(session, exception);
+        try {
+            super.handleTransportError(session, exception);
+        } catch (Exception e) {
+
+            log.info("handleTransportError[Exception] ID: " + session.getId());
+            exception.printStackTrace();
+
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
 
         // Slack 알람 전송
 
         log.info("handleTransportError ID: " + session.getId());
         log.info("afterConnectionClosed Reason: " + status.getReason());
 
-        super.afterConnectionClosed(session, status);
+        try {
+            super.afterConnectionClosed(session, status);
+        } catch (Exception e) {
+
+            // Slack 알람 전송
+
+            log.info("handleTransportError [Exception] ID: " + session.getId());
+            log.info("afterConnectionClosed [Exception] Reason: " + status.getReason());
+
+            throw new RuntimeException(e);
+        }
     }
 
     private void stopLoss(WebSocketSession session, List<TraceList> traceLists) {
@@ -272,7 +290,4 @@ public class TraceHandler extends TextWebSocketHandler {
             throw new RuntimeException(e);
         }
     }
-
-
-
 }
