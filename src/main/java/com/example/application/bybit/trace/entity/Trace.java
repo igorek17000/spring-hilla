@@ -31,9 +31,12 @@ public class Trace {
 
     private Integer maxLevel = 0;
 
+    private Double basePrice = 0.0;
     private Double realPrice = 0.0;
+    private Integer qty = 0;
 
     private boolean buyFlag = true;
+    private boolean startFlag = false;
     private boolean endFlag = false;
     private boolean cancelFlag = false;
 

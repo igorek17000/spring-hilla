@@ -32,7 +32,7 @@ public class BybitOrderUtil {
             Integer qty,
             SIDE side,
             TIME_IN_FORCE time_in_force,
-            Integer price,
+            Double price,
             ORDER_TYPE order_type
     ) {
 

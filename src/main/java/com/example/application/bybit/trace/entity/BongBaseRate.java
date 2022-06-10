@@ -24,9 +24,9 @@ public class BongBaseRate {
     @JoinColumn(name = "base_idx", referencedColumnName = "idx")
     private BongBase bongBase;
 
-    private Double rate; // 절대값[(목표가 - 현재값)]에서 증가비율
-    private Integer traceRate; // 100기준 판매량 정도
-    private Double lossRate;
+    private Double  rate; // ex) 0.618
+    private Integer traceRate; // 100 기준 판매량 정도 sort 1 -> 50, sort 2 -> 25
+    private Double  lossRate; // 0.250
 
     // 무조건 시작 1 -> TraceList Level Column 활용
     private Integer sort;

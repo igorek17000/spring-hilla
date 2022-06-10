@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
+// TODO: 거래가 완료될 때까지 봉은 삭제되면 안됨
 @Entity
 @Getter
 @Setter
@@ -25,7 +26,7 @@ public class TraceBaseRate {
     private Integer minuteBong = 1;
 
     // 시작점 금액
-    private Double startPrice;
+    private Double  startPrice;
     private Integer startMonth;
     private Integer startDay;
     private Integer startHour;
@@ -33,15 +34,21 @@ public class TraceBaseRate {
     private Integer startMinute;
 
     // 끝점 금액
-    private Double endPrice;
+    private Double  endPrice;
     private Integer endMonth;
     private Integer endDay;
     private Integer endHour;
     private Integer endTime;
     private Integer endMinute;
 
-    // 목표가
-    private Double targetPrice;
+    // 저점, 고점
+    private Double basePrice;
+
+    // 이전 가격
+    private Double logPrice;
+
+    // 거래종료
+    private boolean enterEndFlag = false;
 
     // Buy 여부
     private boolean buyFlag = true;

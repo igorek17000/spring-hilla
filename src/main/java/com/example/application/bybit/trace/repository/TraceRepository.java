@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface TraceRepository extends JpaRepository<Trace, Integer> {
-    Optional<Trace> findByEndFlagAndMinuteBongAndMember_Idx(boolean end, Integer minuteBong, Integer member_idx);
-    List<Trace> findByEndFlagAndMinuteBong(boolean end, Integer minuteBong);
+    Optional<Trace> findByStartFlagAndEndFlagAndMinuteBongAndMember_Idx(boolean startFlag, boolean endFlag, Integer minuteBong, Integer member_idx);
+    List<Trace> findByStartFlagAndMinuteBong(boolean startFlag, Integer minuteBong);
 }

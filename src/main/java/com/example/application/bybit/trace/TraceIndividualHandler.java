@@ -265,13 +265,14 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
                 secretKey,
 
                 // TODO 확인해봐야함
-                0, // 포지션 size qty - ( 내가 가진 비트 코인 * 현재가 )
-                                        // /v2/private/wallet/balance
-                                        // available_balance
+                // API 조회 2번
+                // 주문 번호로 갯수 가져와야함
+                0, // 포지션 size qty +   ( 내가 가진 비트 코인 * 현재가 )
+
 
                 trace.isBuyFlag() ? SIDE.Sell : SIDE.Buy,
                 TIME_IN_FORCE.GoodTillCancel,
-                0,
+                0.0,
                 ORDER_TYPE.Market
         );
 

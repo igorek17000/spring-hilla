@@ -29,6 +29,8 @@ public class BongBase {
     @Column(unique = true, nullable = false)
     private Integer minuteBong;
 
+    private Double enterRate;
+
     @CreationTimestamp
     private LocalDateTime createDate;
 
