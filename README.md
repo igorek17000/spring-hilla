@@ -32,3 +32,4 @@
 1. 중복 실행 안되게 설정
 2. common_trace_set 종료안된 시점에서 common_trace_start 실행하면 안됨
 3. 항상 실행되고 있음 individual_check
+4. 판매할때도 안팔릴시 어떻게 처리할지 생각해봐야함

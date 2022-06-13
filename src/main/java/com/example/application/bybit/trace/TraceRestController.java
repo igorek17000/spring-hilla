@@ -24,11 +24,9 @@ public class TraceRestController {
 
     ){
         var traces = traceService.commonTraceSet(minuteBong, price, isBuy, basePrice);
-
         if (traces.size() == 0) {
             return null;
         }
-
         return traces;
     }
 

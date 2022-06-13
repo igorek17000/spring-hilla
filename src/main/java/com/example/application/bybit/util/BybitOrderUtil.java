@@ -32,9 +32,10 @@ public class BybitOrderUtil {
     ) {
 
         var map = new TreeMap<String, String>(String::compareTo);
+
         map.put("api_key",   apiKey);
         map.put("timestamp", ZonedDateTime.now().toInstant().toEpochMilli()+"");
-        map.put("coin",    "BTC"); // TODO: 확인필요
+        map.put("coin",    "BTC");
 
         try {
             var queryString = BybitEncryption.genQueryString(map, secretKey);
