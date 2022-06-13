@@ -247,7 +247,7 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
         // 가져온 데이터를 이용하여 Bybit Api 호출 (실질적으로 취소)
         filterStream.forEach(
                 traceData -> {
-                    ResponseEntity<?> responseEntity = BybitOrderUtil.order_cancel(apiKey, secretKey, traceData.getOrderLinkId());
+                    ResponseEntity<?> responseEntity = BybitOrderUtil.order_cancel(apiKey, secretKey, traceData.getOrderId());
                     if (responseEntity == null || (!HttpStatus.OK.equals(responseEntity.getStatusCode())) ){
 
                         // 주문취소 실패시 Slack 알림

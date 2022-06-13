@@ -1,5 +1,6 @@
 package com.example.application.bybit.trace.entity;
 
+import com.example.application.bybit.trace.dto.response.BybitOrderData;
 import com.example.application.bybit.trace.enums.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -32,8 +33,6 @@ public class TraceList {
     private Double price = 0.0;
     private Double stopLossPrice = 0.0;
     private boolean isOk = false;
-
-    // TODO: https://bybit-exchange.github.io/docs/inverse/#quantity-qty 확인해봐야함
     private Integer qty = 0;
     private String  orderId = "";
     private String orderLinkId = "";
@@ -58,6 +57,22 @@ public class TraceList {
 
     @UpdateTimestamp
     private LocalDateTime updateDate;
+
+    public TraceList(BybitOrderData result) {
+        this.level = 0;
+        this.userId = result.user_id;
+        this.price = result.getPrice();
+        this.isOk = false;
+        this.qty = result.getQty();
+        this.orderId = result.getOrder_id();
+        this.orderLinkId = result.getOrder_link_id();
+        this.orderType = ORDER_TYPE.valueOf(result.getOrder_type());
+        this.timeInForce = TIME_IN_FORCE.valueOf(result.getTime_in_force());
+        this.side = SIDE.valueOf(result.getSide());
+        this.symbol = SYMBOL.valueOf(result.getSymbol());
+        this.orderStatus = ORDER_STATUS.valueOf(result.getOrder_status());
+        this.createDate = LocalDateTime.now();
+    }
 
     // 남은 결과값들
     // "result": {

@@ -6,9 +6,9 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class BybitOrderResult {
+public class BybitMyOrderResult {
 
-    private List<BybitOrderData> data;
+    private List<BybitMyOrderData> data;
     private String cursor;
 
 }

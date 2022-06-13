@@ -40,10 +40,11 @@ public class Trace {
     private boolean endFlag = false;
     private boolean cancelFlag = false;
 
-    @OneToMany(mappedBy = "trace")
+    @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
     public List<TraceList> traceLists = new ArrayList<>();
 
-    @OneToMany(mappedBy = "trace")
+    // orphanRemoval = true
+    @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
     public List<TraceBongBaseRate> traceRates = new ArrayList<>();
 
     @CreationTimestamp

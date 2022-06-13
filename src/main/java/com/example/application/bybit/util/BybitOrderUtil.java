@@ -19,9 +19,69 @@ public class BybitOrderUtil {
     private final static String position_url = "https://api.bybit.com/v2/private/position/list?";
     private final static String order_list_url = "https://api.bybit.com/v2/private/order/list?";
     private final static String order_cancel_url = "https://api.bybit.com/v2/private/order/cancel?";
+    private final static String public_order_list = "https://api.bybit.com/v2/public/orderBook/L2?symbol=BTCUSD";
+    private final static String my_wallet = "/v2/private/wallet/balance?";
+
+    /**
+     * <p>내가 가진 비트 코인 조회</p>
+     * <a href="https://bybit-exchange.github.io/docs/inverse/#t-balance"> 참고 링크 </a>
+     */
+    public static ResponseEntity<?> my_wallet(
+            String apiKey,
+            String secretKey
+    ) {
+
+        var map = new TreeMap<String, String>(String::compareTo);
+        map.put("api_key",   apiKey);
+        map.put("timestamp", ZonedDateTime.now().toInstant().toEpochMilli()+"");
+        map.put("coin",    "BTC"); // TODO: 확인필요
+
+        try {
+            var queryString = BybitEncryption.genQueryString(map, secretKey);
+
+            var template = new RestTemplate();
+            var response = template.getForEntity(
+                    my_wallet + queryString,
+                    String.class
+            );
+
+            var body = response.getBody();
+
+            log.info("my_wallet: " + response.getStatusCode());
+            log.info("my_wallet: " + body);
+
+            return response;
+
+        } catch (NoSuchAlgorithmException | InvalidKeyException e){
+            e.printStackTrace();
+
+            // Slack 알림
+            return null;
+        }
+    }
+
+    /**
+     * <p>주문 내역보기 [공용]</p>
+     * <a href="https://bybit-exchange.github.io/docs/inverse/#t-orderbook"> 참고 링크 </a>
+     */
+    public static ResponseEntity<?> publicOrderList (
+
+    ) {
+        var template = new RestTemplate();
+        var response = template.getForEntity(
+                public_order_list,
+                String.class
+        );
+
+        var body = response.getBody();
+
+        log.info("publicOrderList: " + response.getStatusCode());
+        log.info("publicOrderList: " + body);
+
+        return response;
+    }
 
 
-    // TODO stop_loss 손절금액 설정있던데 확인 필요
     /**
      * <p>공매수, 공매도</p>
      * <a href="https://bybit-exchange.github.io/docs/inverse/#t-placeactive"> 참고 링크 </a>

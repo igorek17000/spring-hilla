@@ -6,19 +6,24 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+
+// TODO Mapping이 중복 실행 안되게 하는 방안?
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/bybit/trace")
 public class TraceRestController {
     private final TraceService traceService;
 
-    // Jar 주의점 [중복 실행],
-    // common_trace_set 종료안된시점에서 common_trace_start 실행하면 안됨
     @GetMapping("/{minuteBong}/{price}")
     public List<Trace> common_trace_set(
             @PathVariable Integer minuteBong,
-            @PathVariable Double price){
-        var traces = traceService.commonTraceSet(minuteBong, price);
+            @PathVariable Double price,
+            @RequestParam(name = "isBuy", defaultValue = "true") boolean isBuy,
+            @RequestParam(name = "basePrice", defaultValue = "0.0") Double basePrice
+
+    ){
+        var traces = traceService.commonTraceSet(minuteBong, price, isBuy, basePrice);
 
         if (traces.size() == 0) {
             return null;
@@ -31,6 +36,7 @@ public class TraceRestController {
     public List<Trace> common_trace_start(
             @PathVariable Integer minuteBong
     ){
+
         var traces = traceService.commonTraceStart(minuteBong);
 
         if (traces.size() == 0) {

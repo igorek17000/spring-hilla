@@ -2,15 +2,14 @@ package com.example.application.bybit.trace.dto.response;
 
 
 import lombok.Data;
-
 @Data
-public class BybitOrderData {
-    public Long user_id;
+public class BybitMyOrderCancelData {
+    public int user_id;
     public String order_id;
     public String symbol;
     public String side;
     public String order_type;
-    public Double price;
+    public int price;
     public int qty;
     public String time_in_force;
     public String order_status;
@@ -25,4 +24,3 @@ public class BybitOrderData {
     public String created_at;
     public String updated_at;
 }
-
