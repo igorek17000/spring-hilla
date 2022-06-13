@@ -13,13 +13,11 @@ import java.security.NoSuchAlgorithmException;
 import java.time.ZonedDateTime;
 import java.util.*;
 
-@RestController
 @RequiredArgsConstructor
 public class MonitorTestController {
     //TODO 테스트용 컨트롤러 , 테스트 후 hilla로
     private final MemberApiRepository memberApiRepository;
 
-    @GetMapping("/balance")
     public void balance() throws NoSuchAlgorithmException, InvalidKeyException {
 
         var restTemplate = new RestTemplate();
@@ -47,7 +45,6 @@ public class MonitorTestController {
 
     }
 
-    @GetMapping("/list")
     public void list() throws NoSuchAlgorithmException, InvalidKeyException {
 
         var restTemplate = new RestTemplate();
