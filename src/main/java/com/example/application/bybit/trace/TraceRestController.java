@@ -34,7 +34,6 @@ public class TraceRestController {
     public List<Trace> common_trace_start(
             @PathVariable Integer minuteBong
     ){
-
         var traces = traceService.commonTraceStart(minuteBong);
 
         if (traces.size() == 0) {

@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class TraceList {
+public class TraceExit {
 
     @Id
     @GeneratedValue
@@ -26,9 +26,7 @@ public class TraceList {
     @ManyToOne
     @JoinColumn(name = "trace_idx", referencedColumnName = "idx", nullable = false)
     private Trace trace;
-
-    private Integer level;
-
+    private Integer level; // level -> 1, 2, 3
     private Long userId;
     private Double price = 0.0;
     private Double stopLossPrice = 0.0;
@@ -57,9 +55,8 @@ public class TraceList {
 
     @UpdateTimestamp
     private LocalDateTime updateDate;
-
-    public TraceList(BybitOrderData result) {
-        this.level = 0;
+    public TraceExit(BybitOrderData result, Integer level) {
+        this.level = level;
         this.userId = result.user_id;
         this.price = result.getPrice();
         this.isOk = false;
@@ -73,18 +70,4 @@ public class TraceList {
         this.orderStatus = ORDER_STATUS.valueOf(result.getOrder_status());
         this.createDate = LocalDateTime.now();
     }
-
-    // 남은 결과값들
-    // "result": {
-    //    "last_exec_time": 0,
-    //    "last_exec_price": 0,
-    //    "leaves_qty": 1,
-    //    "cum_exec_qty": 0,
-    //    "cum_exec_value": 0,
-    //    "cum_exec_fee": 0,
-    //    "reject_reason": "",
-    //    "order_link_id": "",
-    //    "created_at": "2019-11-30T11:03:43.452Z",
-    //    "updated_at": "2019-11-30T11:03:43.455Z"
-    //  },
 }

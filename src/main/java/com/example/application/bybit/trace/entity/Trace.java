@@ -11,6 +11,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 봉 거래 시점
+ */
 @Entity
 @Getter
 @Setter
@@ -27,29 +30,29 @@ public class Trace {
     private Member member;
 
     @Column(nullable = false)
-    private Integer minuteBong = 1;
+    private Integer minuteBong    = 1;
+    private Double  basePrice     = 0.0; /* 고점, 저점 */
+    private Double  price         = 0.0; /* 진입점 금액 */
+    private Double  lossPrice     = 0.0; /* 손절 금액 */
 
-    private Integer maxLevel = 0;
-
-    private Double basePrice = 0.0;
-    private Double realPrice = 0.0;
-    private Integer qty = 0;
-
-    private boolean buyFlag = true;
-    private boolean startFlag = false;
-    private boolean endFlag = false;
-    private boolean cancelFlag = false;
+    private boolean buyFlag    = true;
+    private boolean startFlag  = false;
+    private boolean endFlag    = false;
 
     @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
-    public List<TraceList> traceLists = new ArrayList<>();
+    public List<TraceEnter> traceEnters = new ArrayList<>();
 
-    // orphanRemoval = true
+    private Integer maxExitLevel  = 0;
     @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
-    public List<TraceBongBaseRate> traceRates = new ArrayList<>();
+    public List<TraceExit> traceExits = new ArrayList<>();
+
+    @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
+    public List<TraceRate> traceRates = new ArrayList<>();
 
     @CreationTimestamp
     private LocalDateTime createDate;
 
     @UpdateTimestamp
     private LocalDateTime updateDate;
+
 }

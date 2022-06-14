@@ -2,7 +2,7 @@ package com.example.application.bybit.trace;
 
 import com.example.application.bybit.trace.dto.response.BybitTrace;
 import com.example.application.bybit.trace.entity.Trace;
-import com.example.application.bybit.trace.entity.TraceList;
+import com.example.application.bybit.trace.entity.TraceExit;
 import com.example.application.bybit.trace.enums.ORDER_STATUS;
 import com.example.application.bybit.trace.enums.ORDER_TYPE;
 import com.example.application.bybit.trace.enums.SIDE;
@@ -109,10 +109,10 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
             var nowPrice = bybitTrace.getData().get(0).getPrice();
 
             // DB 에서 조회한 데이터
-            var traceLists = trace.getTraceLists();
+            var traceLists = trace.getTraceExits();
 
             // 구매 데이터가 없는 경우 || 구매 데이터가 더 많은 경우
-            if (traceLists.stream().filter(traceList -> traceList.getLevel().equals(0)).count() != 1) {
+            if (traceLists.stream().filter(traceExit -> traceExit.getLevel().equals(0)).count() != 1) {
                 // Slack 알람
 
                 close(session);
@@ -120,19 +120,19 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
             }
 
             // trace Level 정렬
-            trace.setTraceLists(
-                    trace.getTraceLists()
+            trace.setTraceExits(
+                    trace.getTraceExits()
                             .stream()
-                            .sorted(Comparator.comparing(TraceList::getLevel))
+                            .sorted(Comparator.comparing(TraceExit::getLevel))
                             .collect(Collectors.toList())
             );
 
             // Level 갯수만큼 반복
-            for (int i = 1; i <= trace.getMaxLevel(); i++) {
+            for (int i = 1; i <= trace.getMaxExitLevel(); i++) {
 
                 // 지정가가 무조건 한개만 있어야하는데 데이터가 없거나 여러 개인경우 에러
                 int nowIdx = i;
-                if (traceLists.stream().filter(traceList -> traceList.getLevel().equals(nowIdx) && traceList.getOrderType().equals(ORDER_TYPE.Limit)).count() != 1) {
+                if (traceLists.stream().filter(traceExit -> traceExit.getLevel().equals(nowIdx) && traceExit.getOrderType().equals(ORDER_TYPE.Limit)).count() != 1) {
                     close(session);
                     throw new RuntimeException("데이터가 이상합니다. ( [" + i + "]번째 지정가 데이터는 한개만 존재해야함)");
                 }
@@ -141,9 +141,9 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
                 boolean isBuy = trace.isBuyFlag();
 
                 // 구매한 데이터 가져옴
-                TraceList traceList = trace.getTraceLists().get(nowIdx);
+                TraceExit traceExit = trace.getTraceExits().get(nowIdx);
 
-                if (isBuy ? traceList.getStopLossPrice() >= nowPrice : traceList.getStopLossPrice() <= nowPrice) {
+                if (isBuy ? traceExit.getStopLossPrice() >= nowPrice : traceExit.getStopLossPrice() <= nowPrice) {
 
                     // 손절 - 거래 취소 후 모든 금액 팔기 [거래 종료]
                     stopLoss(session, traceLists);
@@ -152,9 +152,9 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
 
                 }
 
-                if (traceList.isOk()) {
+                if (traceExit.isOk()) {
 
-                } else if (isBuy ? traceList.getPrice() <= nowPrice : traceList.getPrice() >= nowPrice) {
+                } else if (isBuy ? traceExit.getPrice() <= nowPrice : traceExit.getPrice() >= nowPrice) {
 
                     // 정상적으로 판매가 되었는지 확인하는 과정이 있어야함
                     var traceListParam = traceLists
@@ -163,11 +163,11 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
                             .collect(Collectors.toList())
                             .get(0);
 
-                    TraceList traceData = traceService.traceListDataUpdate(traceListParam, apiKey, secretKey);
-                    trace.getTraceLists().remove(traceData);
-                    trace.getTraceLists().add(traceData);
+                    TraceExit traceData = traceService.traceListDataUpdate(traceListParam, apiKey, secretKey);
+                    trace.getTraceExits().remove(traceData);
+                    trace.getTraceExits().add(traceData);
 
-                    if (i == trace.getMaxLevel()) {
+                    if (i == trace.getMaxExitLevel()) {
                         traceService.end(trace.getIdx());
 
                         close(session);
@@ -235,13 +235,13 @@ public class TraceIndividualHandler extends TextWebSocketHandler {
         }
     }
 
-    private void stopLoss(WebSocketSession session, List<TraceList> traceLists) {
+    private void stopLoss(WebSocketSession session, List<TraceExit> traceExits) {
 
         // 1. (ORDER_STATUS - Filled 가 아닌 것)
         // 모두 취소하기위해 데이터를 가져옴
-        Stream<TraceList> filterStream = traceLists.stream().filter(
-                traceList -> traceList.getOrderType().equals(ORDER_TYPE.Limit)
-                        && !(traceList.getOrderStatus().equals(ORDER_STATUS.Filled))
+        Stream<TraceExit> filterStream = traceExits.stream().filter(
+                traceExit -> traceExit.getOrderType().equals(ORDER_TYPE.Limit)
+                        && !(traceExit.getOrderStatus().equals(ORDER_STATUS.Filled))
         );
 
         // 가져온 데이터를 이용하여 Bybit Api 호출 (실질적으로 취소)

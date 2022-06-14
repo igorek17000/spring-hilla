@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class TraceBongBaseRate {
+public class TraceRate {
     @Id
     @GeneratedValue
     private Integer idx;

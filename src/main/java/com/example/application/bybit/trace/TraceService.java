@@ -24,6 +24,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+// TODO 전체 실패 로그 DB에 저장
+// 슬랙 알림 보내기
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -31,8 +34,9 @@ import java.util.stream.Collectors;
 public class TraceService {
 
     private final TraceRepository traceRepository;
-    private final TraceListRepository traceListRepository;
-    private final TraceBongBaseRateRepository traceBongBaseRateRepository;
+    private final TraceExitRepository traceExitRepository;
+    private final TraceEnterRepository traceEnterRepository;
+    private final TraceRateRepository traceRateRepository;
     private final MemberRepository memberRepository;
     private final MemberApiRepository memberApiRepository;
 
@@ -74,20 +78,22 @@ public class TraceService {
 
             if (memberApis.size() > 0) {
 
-                log.info("5. bongBaseOptional: 봉 수익,손절 퍼센트 기준, 구매 중지 데이터 가져오기");
+                log.info("5. 진입 기준 데이터 가져오기");
                 var bongBaseOptional =  bongBaseRepository.findByMinuteBong(minuteBong);
                 if (bongBaseOptional.isEmpty()){
                     // Slack 알람
-                    log.error("5-fail. " + minuteBong + "분봉 수익기준 데이터가 없습니다.");
+                    log.error("5-fail. " + minuteBong + "진입 데이터가 없습니다.");
                     return resultList;
                 }
 
-                log.info("6. bongBaseOptional: 봉 첫 구매 - 수익,손절 퍼센트 기준, 구매 중지 데이터 가져오기");
-                if (bongBaseOptional.get().getRates().stream().noneMatch(rate -> rate.getSort().equals(0))) {
+                log.info("6. 청산 기준 퍼센트 기준 확인");
+                if (bongBaseOptional.get().getExitRates().size() == 0) {
                     // Slack 알람
-                    log.error("6-fail. "+ minuteBong + "분봉 수익기준(0) 데이터가 없습니다.");
+                    log.error("6-fail. "+ minuteBong + "청산 퍼센트 기준 데이터가 없습니다.");
                     return resultList;
                 }
+
+                log.info("bongBase: 청산, 진입 기준 데이터");
                 var bongBase = bongBaseOptional.get();
 
                 log.info("7. [목표가 구하는 것]");
@@ -123,7 +129,6 @@ public class TraceService {
 
                                     if (bybitOrderList.getRet_code().equals(0)) {
 
-
                                         bybitOrderList.getResult().getData().forEach(
                                                 data -> {
 
@@ -134,7 +139,7 @@ public class TraceService {
                                                             data.getOrder_id()
                                                     );
 
-                                                    if (orderCancelResponse == null || (!HttpStatus.OK.equals(orderCancelResponse.getStatusCode())) || orderCancelResponse.getBody() == null){
+                                                    if (orderCancelResponse == null || (!HttpStatus.OK.equals(orderCancelResponse.getStatusCode())) || orderCancelResponse.getBody() == null) {
                                                         // Slack 알림
                                                         log.error("10-fail. " + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 실패");
                                                     } else {
@@ -147,17 +152,17 @@ public class TraceService {
                                                             } else {
 
                                                                 log.info("11. Bybit 주문 활성 취소를 성공시 주문[DB] 데이터도 삭제");
-                                                                var traceListOptional = traceListRepository.findByOrderId(data.getOrder_id());
-                                                                if (traceListOptional.isPresent()) {
-                                                                    var trace = traceListOptional.get().getTrace();
-                                                                    traceRepository.delete(trace);
+                                                                var traceEnterOptional = traceEnterRepository.findByOrderId(data.getOrder_id());
+                                                                if (traceEnterOptional.isPresent()) {
+                                                                    var traceEnter = traceEnterOptional.get();
+                                                                    traceEnterRepository.delete(traceEnter);
                                                                 }
+
                                                             }
                                                         } catch (JsonProcessingException e) {
                                                             // Slack 알림
                                                             log.error("10-fail-JsonProcessingException. "  + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 데이터 변환 (Bybit)");
                                                         }
-
                                                     }
                                                 }
                                         );
@@ -225,7 +230,7 @@ public class TraceService {
 
                                                                 log.info("17. 값이 실시간으로 변경되기 때문에 가격오르면 그 비율을 확인후 들어가도 되는지 안되는지 판단하기 위한 작업");
                                                                 log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
-                                                                var enterPrice = basePrice + (targetPrice - basePrice) * bongBase.getEnterRate();
+                                                                var enterPrice = basePrice + (targetPrice - basePrice) * bongBase.getEnterEndRate();
                                                                 log.info("Buy: 기준금액 >= 실제금액, Sell: 기준금액 <= 실제금액 - 구매 가능");
                                                                 if ( isBuy ? enterPrice >= realPrice : enterPrice <= realPrice  ) {
 
@@ -257,59 +262,63 @@ public class TraceService {
                                                                                         + (int) Math.floor(qty) + "realPrice: " + realPrice + " 구매를 실패했습니다. (Bybit)  Ret_code: "
                                                                                         + bybitOrder.getRet_code() + "(" +bybitOrder.getRet_msg() + ")");
                                                                             } else {
+
+                                                                                // TODO: Trace 데이터가 있는지 없는지 확인 후 구매 데이터 저장
+                                                                                // 여기서부터 수정
+
                                                                                 log.info("20. 구매 DB 저장 [지정가 내역 임시 저장 - 판매가 내역 생성 안된 시점]");
-                                                                                var traceParam = new Trace (
-                                                                                        null,
-                                                                                        memberApi.getMember(),
-                                                                                        minuteBong,
-                                                                                        bongBase.getRates().size(),
-                                                                                        bybitOrder.getResult().getPrice(),
-                                                                                        realPrice,
-                                                                                        bybitOrder.getResult().getQty(),
-                                                                                        isBuy,
-                                                                                        false,
-                                                                                        false,
-                                                                                        false,
-                                                                                        new ArrayList<>(),
-                                                                                        new ArrayList<>(),
-                                                                                        LocalDateTime.now(),
-                                                                                        LocalDateTime.now()
-                                                                                );
-                                                                                var trace = traceRepository.save(traceParam);
-
-                                                                                log.info("21. 구매한 결과 상세 DB 저장 [Save Lv0]");
-                                                                                var traceBaseListParam = new TraceList (bybitOrder.getResult());
-                                                                                var traceBaseList = traceListRepository.save(traceBaseListParam);
-
-                                                                                log.info("손절금액 설정");
-                                                                                log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
-                                                                                var lossRate = bongBaseOptional.get().getRates().stream()
-                                                                                        .filter(rate -> rate.getSort().equals(0))
-                                                                                        .collect(Collectors.toList())
-                                                                                        .get(0)
-                                                                                        .getLossRate();
-
-                                                                                var lossPrice = basePrice + (targetPrice - basePrice) * lossRate;
-                                                                                traceBaseList.setStopLossPrice(lossPrice);
-
-                                                                                traceBaseList.setTrace(trace);
-                                                                                trace.getTraceLists().add(traceBaseList);
-
-
-                                                                                log.info("22. 구매했을 당시 봉 수익,손절 퍼센트 기준, 구매 중지 데이터 사용했던 기준 저장");
-                                                                                bongBase.getRates().forEach(rate -> {
-                                                                                    var traceBongBaseRateParam = new TraceBongBaseRate(
-                                                                                            null, null, rate.getRate(), rate.getTraceRate(), rate.getLossRate(),
-                                                                                            rate.getSort(), LocalDateTime.now(), LocalDateTime.now()
-                                                                                    );
-
-                                                                                    var traceBongBaseRate = traceBongBaseRateRepository.save(traceBongBaseRateParam);
-                                                                                    traceBongBaseRate.setTrace(trace);
-                                                                                    trace.getTraceRates().add(traceBongBaseRate);
-                                                                                });
-
-                                                                                log.info("23. 실구매된 경우 저장 결과값 리턴 저장");
-                                                                                resultList.add(trace);
+//                                                                                var traceParam = new Trace (
+//                                                                                        null,
+//                                                                                        memberApi.getMember(),
+//                                                                                        minuteBong,
+//                                                                                        bongBase.getExitRates().size(),
+//                                                                                        basePrice,
+//                                                                                        price,
+//                                                                                        isBuy,
+//                                                                                        false,
+//                                                                                        false,
+//                                                                                        false,
+//                                                                                        new ArrayList<>(),
+//                                                                                        new ArrayList<>(),
+//                                                                                        new ArrayList<>(),
+//                                                                                        LocalDateTime.now(),
+//                                                                                        LocalDateTime.now()
+//                                                                                );
+//                                                                                var trace = traceRepository.save(traceParam);
+//
+//                                                                                log.info("21. 구매한 결과 상세 DB 저장 [Save Lv0]");
+//                                                                                var traceBaseListParam = new TraceExit(bybitOrder.getResult(), 0);
+//                                                                                var traceBaseList = traceExitRepository.save(traceBaseListParam);
+//
+//                                                                                log.info("손절금액 설정");
+//                                                                                log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
+//                                                                                var lossRate = bongBaseOptional.get().getExitRates().stream()
+//                                                                                        .filter(rate -> rate.getSort().equals(0))
+//                                                                                        .collect(Collectors.toList())
+//                                                                                        .get(0)
+//                                                                                        .getLossRate();
+//
+//                                                                                var lossPrice = basePrice + (targetPrice - basePrice) * lossRate;
+//                                                                                traceBaseList.setStopLossPrice(lossPrice);
+//
+//                                                                                traceBaseList.setTrace(trace);
+//                                                                                trace.getTraceExits().add(traceBaseList);
+//
+//
+//                                                                                log.info("22. 구매했을 당시 봉 수익,손절 퍼센트 기준, 구매 중지 데이터 사용했던 기준 저장");
+//                                                                                bongBase.getExitRates().forEach(rate -> {
+//                                                                                    var traceBongBaseRateParam = new TraceRate(
+//                                                                                            null, null, rate.getExitRate(), rate.getTraceRate(), rate.getLossRate(),
+//                                                                                            rate.getSort(), LocalDateTime.now(), LocalDateTime.now()
+//                                                                                    );
+//
+//                                                                                    var traceBongBaseRate = traceRateRepository.save(traceBongBaseRateParam);
+//                                                                                    traceBongBaseRate.setTrace(trace);
+//                                                                                    trace.getTraceRates().add(traceBongBaseRate);
+//                                                                                });
+//
+//                                                                                log.info("23. 실구매된 경우 저장 결과값 리턴 저장");
+//                                                                                resultList.add(trace);
 
                                                                             }
                                                                         }catch (JsonProcessingException e){
@@ -389,13 +398,13 @@ public class TraceService {
                                 + bongBase.stream().filter(data -> data.getSort().equals(0)).count() + ")");
                     } else {
 
-                        log.info("4. 순차적으로 판매 비율을 계산하기 위한 정렬 (Sort 기준)");
+                        log.info("4. 순차적으로 판매 비율을 계산하기 위한 정렬 (Sort 기준) - Level 0은 제외 [판매금액 설정]");
                         var rates = bongBase
                                 .stream()
-                                .sorted(Comparator.comparing(TraceBongBaseRate::getSort))
+                                .filter(data -> !data.getSort().equals(0))
+                                .sorted(Comparator.comparing(TraceRate::getSort))
                                 .collect(Collectors.toList());
 
-                        var totalQty = trace.getQty();
                         var isBuy   = trace.isBuyFlag();
                         var member  = trace.getMember();
 
@@ -433,7 +442,7 @@ public class TraceService {
                                             log.error("6-fail-3. [Bybit Rest] 조회된 내역 리스트가 없습니다.");
                                         } else {
                                             log.info("7. 비트코인 구매 내역 조회");
-                                            var traceList = trace.getTraceLists();
+                                            var traceList = trace.getTraceExits();
                                             if(traceList.size() == 0 || traceList.stream().filter(data -> data.getLevel().equals(0)).count() != 1) {
                                                 // Slack
                                                 log.error("7-fail. " + trace.getIdx() + " 구매 내역 데이터가 올바르지 않습니다. (" + traceList.stream().filter(data -> data.getLevel().equals(0)).count() + ")");
@@ -454,71 +463,107 @@ public class TraceService {
                                                         .count() != 1) {
 
                                                     // TODO 일부만 구매 되었을 경우 [금액 조정, qty 조정]
-                                                    log.info("myOrderDataListPartiallyFilled_Order_Ids: Level 0 [부분 구매 내역과]와 Bybit 주문된 번호가 있을 경우");
+                                                    log.info("myOrderDataListPartiallyFilled_Order_Ids: 부분 구매 완료");
                                                     var myOrderDataListPartiallyFilled
                                                             = myOrderDataList.stream()
                                                             .filter(data -> data.getOrder_status().equals(ORDER_STATUS.PartiallyFilled))
                                                             .collect(Collectors.toList());
 
                                                     // TODO 구매 취소 & 데이터 날려야함
+                                                    log.info("부분 구매가 된 경우");
+                                                    if (myOrderDataListPartiallyFilled.size() > 0) {
+
+                                                    }
+
 
 
                                                 log.info("정상 구매가 완료되었을 때 [모든 금액]");
                                                 } else {
 
-                                                    // 비트 코인 구매 내역 추출
+                                                    log.info("비트 코인 구매 내역 추출");
                                                     var traceLv0Data
                                                             = traceList.stream()
                                                                 .filter(data -> data.getLevel().equals(0))
                                                                 .collect(Collectors.toList())
                                                                 .get(0);
 
-                                                    // TODO: 여기서 부터 해야함
-                                                    // TODO: 내림으로 비율 계산 해야함
+                                                    log.info("qty: 비율 계산 해야함(버림)");
+                                                    log.info("addQty: 누적으로 계산한뒤 총 qty 에서 마지막 전 데이터까지 누적 qty 를 빼주기 위해 계산");
+                                                    var totalQty = traceLv0Data.getQty();
                                                     var addQty = 0;
                                                     for (var rate : rates) {
 
-                                                        // traceRate
-                                                        var qty = 0;
+                                                        var qty = traceLv0Data.getQty();
                                                         if (rate.getSort() == rates.size()) {
                                                             qty = totalQty - addQty;
+                                                            log.info("qty Last: " + qty);
                                                         } else {
                                                             var traceRate = rate.getTraceRate();
-                                                            qty = totalQty;
+                                                            qty = (int) Math.floor(qty * ((double) traceRate / 100));
+                                                            addQty += qty;
+                                                            log.info("qty: " + qty + "(" + addQty + ")");
                                                         }
 
-                                                        // [지정가 설정]
-                                                        var response = BybitOrderUtil.order(
+                                                        log.info("[목표가 계산하기]");
+                                                        log.info("Buy  = 현재가 + ( 현재가 - 기준(저점) )");
+                                                        log.info("Sell = 현재가 - ( 기준(고점) - 현재가 )");
+                                                        var price       = trace.getPrice();     /* 현재가 (진입금액) */
+                                                        var basePrice   = trace.getBasePrice(); /* 기준(저점, 고점) */
+                                                        var targetPrice = isBuy ? price + (price - basePrice) : price - (basePrice - price);
+
+
+                                                        log.info("[구매 금액, 손절금액 계산하기]");
+                                                        log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
+                                                        var sellPrice = basePrice + (targetPrice - basePrice) * rate.getRate();
+                                                        var lossPrice = basePrice + (targetPrice - basePrice) * rate.getLossRate();
+
+                                                        log.info("[Bybit Rest] 구매 지정가" );
+                                                        var responseEntity = BybitOrderUtil.order(
                                                                 memberApi.getApiKey(),
                                                                 memberApi.getSecretKey(),
                                                                 qty,
-                                                                isBuy ? SIDE.Buy : SIDE.Sell,
+                                                                isBuy ? SIDE.Sell : SIDE.Buy,
                                                                 TIME_IN_FORCE.PostOnly,
-                                                                0.0,
+                                                                sellPrice,
                                                                 ORDER_TYPE.Limit
                                                         );
 
-                                                        if (response != null && response.getStatusCode().equals(HttpStatus.OK)) {
-
-                                                            // TODO
-                                                            // 판매 금액 = Buy -> 저점 + (목표가 - 저점) * 비율
-                                                            var traceListParam = new TraceList(
-
-                                                            );
-
-                                                            var traceListSave = traceListRepository.save(traceListParam);
-                                                            traceListSave.setTrace(trace);
-                                                            trace.getTraceLists().add(traceListSave);
-
-                                                            if (rate.getSort() == rates.size()) {
-                                                                trace.setStartFlag(true);
-                                                            }
-
-                                                            resultList.add(trace);
-                                                        } else {
+                                                        if (responseEntity == null || !responseEntity.getStatusCode().equals(HttpStatus.OK) || responseEntity.getBody() == null) {
                                                             // Slack 알림
+                                                            log.error("판매 지정가 조회 실패" + memberApi.getMember() + ", qty: " + qty + "sellPrice: " + sellPrice + " 판매를 실패했습니다. (Bybit)");
+                                                        } else {
+
+                                                            try {
+                                                                var bybitOrder = objectMapper.readValue(responseEntity.getBody().toString(), BybitOrder.class);
+                                                                if (bybitOrder.getRet_code() != 0) {
+                                                                    // Slack 알림
+                                                                    log.error("판매 지정가 조회 실패" + memberApi.getMember() + ", qty: "
+                                                                            + qty + "sellPrice: " + sellPrice + " 구매를 실패했습니다. (Bybit)  Ret_code: "
+                                                                            + bybitOrder.getRet_code() + "(" +bybitOrder.getRet_msg() + ")");
+
+                                                                } else {
+
+                                                                    log.info("정상 처리되었을시 저장");
+                                                                    var traceBaseListParam = new TraceExit(bybitOrder.getResult(), rate.getSort());
+                                                                    var traceBaseList = traceExitRepository.save(traceBaseListParam);
+
+                                                                    log.info("손절 금액 설정");
+                                                                    traceBaseList.setStopLossPrice(lossPrice);
+                                                                    traceBaseList.setTrace(trace);
+
+                                                                    trace.getTraceExits().add(traceBaseList);
+                                                                }
+
+                                                            }catch (JsonProcessingException e){
+                                                                // Slack 알림
+                                                                log.error("" + memberApi.getMember() + ", qty: " + qty + "sellPrice: " + sellPrice + " 판매를 실패했습니다. Json 변환 실패 (Bybit)");
+                                                            }
                                                         }
                                                     }
+
+                                                    // TODO: 처리 확인 필요
+                                                    log.info("핀메된 경우 저장 결과값 리턴 저장");
+                                                    resultList.add(trace);
                                                 }
                                             }
                                         }
@@ -566,7 +611,7 @@ public class TraceService {
     public Trace traceCancelUpdate(Trace traceParam, String apiKey, String secretKey) {
 
         // DB Filled 제외하고 조회
-        var traceLists = traceListRepository.findByOrderTypeAndOrderStatusNotAndTrace_Idx(ORDER_TYPE.Limit, ORDER_STATUS.Filled, traceParam.getIdx());
+        var traceLists = traceExitRepository.findByOrderTypeAndOrderStatusNotAndTrace_Idx(ORDER_TYPE.Limit, ORDER_STATUS.Filled, traceParam.getIdx());
 
         if (traceLists.size() == 0) {
             return traceParam;
@@ -616,7 +661,7 @@ public class TraceService {
                     var trace = traceLists.get(0).getTrace();
                     // trace 에 trace List 가 모두 취소되었을때 Master 테이블에 isCancel true update query
                     if (traceLists.stream().allMatch(traceData -> traceData.getOrderStatus().equals(ORDER_STATUS.Cancelled))){
-                        trace.setCancelFlag(true);
+//                        trace.setCancelFlag(true);
                     }
                     return trace;
                 }
@@ -630,15 +675,15 @@ public class TraceService {
     }
 
     @Transactional
-    public TraceList traceListDataUpdate (
-            TraceList traceListParam,
+    public TraceExit traceListDataUpdate (
+            TraceExit traceExitParam,
             String apiKey,
             String secretKey
     ) {
 
-        var traceListOptional = traceListRepository.findById(traceListParam.getIdx());
+        var traceListOptional = traceExitRepository.findById(traceExitParam.getIdx());
         if (traceListOptional.isEmpty()) {
-            return traceListParam;
+            return traceExitParam;
         }
 
         var responseEntity = BybitOrderUtil.order_list(
@@ -649,7 +694,7 @@ public class TraceService {
 
         if (responseEntity == null || (!responseEntity.getStatusCode().equals(HttpStatus.OK))) {
             // slack 알림 전송
-            return traceListParam;
+            return traceExitParam;
         } else {
             var body = Objects.requireNonNull(responseEntity.getBody()).toString();
 
@@ -679,7 +724,7 @@ public class TraceService {
                 // Slack 알림
             }
 
-            return traceListParam;
+            return traceExitParam;
         }
     }
 
