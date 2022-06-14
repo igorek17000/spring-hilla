@@ -263,62 +263,44 @@ public class TraceService {
                                                                                         + bybitOrder.getRet_code() + "(" +bybitOrder.getRet_msg() + ")");
                                                                             } else {
 
-                                                                                // TODO: Trace 데이터가 있는지 없는지 확인 후 구매 데이터 저장
-                                                                                // 여기서부터 수정
+                                                                                log.info("20. 거래 데이터가 있는지 확인");
+                                                                                Optional<Trace> traceOptional = traceRepository.findByStartFlagAndMinuteBongAndMember_Idx(false, minuteBong, memberApi.getMember().getIdx());
+                                                                                var trace = new Trace();
+                                                                                if (traceOptional.isPresent()) {
+                                                                                    log.info("21. 거래 데이터가 있을 경우");
+                                                                                    trace = traceOptional.get();
+                                                                                } else {
+                                                                                    log.info("22. 거래 데이터가 없는 경우 - 거래 데이터 저장");
+                                                                                    log.info("[판매가 내역 생성 안된 시점]");
+                                                                                    var traceParam = new Trace (
+                                                                                        null,
+                                                                                        memberApi.getMember(),
+                                                                                        minuteBong,
+                                                                                        basePrice,
+                                                                                        price,
+                                                                                        0.0, // TODO: Start에서 값 설정
+                                                                                        isBuy,
+                                                                                        false,
+                                                                                        false,
+                                                                                        new ArrayList<>(),
+                                                                                        bongBase.getExitRates().size(),
+                                                                                        new ArrayList<>(),
+                                                                                        new ArrayList<>(),
+                                                                                        LocalDateTime.now(),
+                                                                                        LocalDateTime.now()
+                                                                                    );
+                                                                                    trace = traceRepository.save(traceParam);
+                                                                                }
 
-                                                                                log.info("20. 구매 DB 저장 [지정가 내역 임시 저장 - 판매가 내역 생성 안된 시점]");
-//                                                                                var traceParam = new Trace (
-//                                                                                        null,
-//                                                                                        memberApi.getMember(),
-//                                                                                        minuteBong,
-//                                                                                        bongBase.getExitRates().size(),
-//                                                                                        basePrice,
-//                                                                                        price,
-//                                                                                        isBuy,
-//                                                                                        false,
-//                                                                                        false,
-//                                                                                        false,
-//                                                                                        new ArrayList<>(),
-//                                                                                        new ArrayList<>(),
-//                                                                                        new ArrayList<>(),
-//                                                                                        LocalDateTime.now(),
-//                                                                                        LocalDateTime.now()
-//                                                                                );
-//                                                                                var trace = traceRepository.save(traceParam);
-//
-//                                                                                log.info("21. 구매한 결과 상세 DB 저장 [Save Lv0]");
-//                                                                                var traceBaseListParam = new TraceExit(bybitOrder.getResult(), 0);
-//                                                                                var traceBaseList = traceExitRepository.save(traceBaseListParam);
-//
-//                                                                                log.info("손절금액 설정");
-//                                                                                log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
-//                                                                                var lossRate = bongBaseOptional.get().getExitRates().stream()
-//                                                                                        .filter(rate -> rate.getSort().equals(0))
-//                                                                                        .collect(Collectors.toList())
-//                                                                                        .get(0)
-//                                                                                        .getLossRate();
-//
-//                                                                                var lossPrice = basePrice + (targetPrice - basePrice) * lossRate;
-//                                                                                traceBaseList.setStopLossPrice(lossPrice);
-//
-//                                                                                traceBaseList.setTrace(trace);
-//                                                                                trace.getTraceExits().add(traceBaseList);
-//
-//
-//                                                                                log.info("22. 구매했을 당시 봉 수익,손절 퍼센트 기준, 구매 중지 데이터 사용했던 기준 저장");
-//                                                                                bongBase.getExitRates().forEach(rate -> {
-//                                                                                    var traceBongBaseRateParam = new TraceRate(
-//                                                                                            null, null, rate.getExitRate(), rate.getTraceRate(), rate.getLossRate(),
-//                                                                                            rate.getSort(), LocalDateTime.now(), LocalDateTime.now()
-//                                                                                    );
-//
-//                                                                                    var traceBongBaseRate = traceRateRepository.save(traceBongBaseRateParam);
-//                                                                                    traceBongBaseRate.setTrace(trace);
-//                                                                                    trace.getTraceRates().add(traceBongBaseRate);
-//                                                                                });
-//
-//                                                                                log.info("23. 실구매된 경우 저장 결과값 리턴 저장");
-//                                                                                resultList.add(trace);
+                                                                                log.info("23. 진입한 결과 상세 DB 저장");
+                                                                                var traceEnterParam = new TraceEnter(bybitOrder.getResult());
+                                                                                var traceEnter = traceEnterRepository.save(traceEnterParam);
+                                                                                traceEnter.setTrace(trace);
+                                                                                trace.getTraceEnters().add(traceEnter);
+
+
+                                                                                log.info("24. 결과값 저장");
+                                                                                resultList.add(trace);
 
                                                                             }
                                                                         }catch (JsonProcessingException e){

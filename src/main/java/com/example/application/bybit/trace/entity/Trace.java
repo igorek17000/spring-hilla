@@ -33,7 +33,7 @@ public class Trace {
     private Integer minuteBong    = 1;
     private Double  basePrice     = 0.0; /* 고점, 저점 */
     private Double  price         = 0.0; /* 진입점 금액 */
-    private Double  lossPrice     = 0.0; /* 손절 금액 */
+    private Double  lossPrice     = 0.0; /* 손절 금액 Start 설정해야함 */
 
     private boolean buyFlag    = true;
     private boolean startFlag  = false;
