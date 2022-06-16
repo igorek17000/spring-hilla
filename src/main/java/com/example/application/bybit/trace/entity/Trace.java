@@ -45,7 +45,6 @@ public class Trace {
     @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
     public List<TraceEnter> traceEnters = new ArrayList<>();
 
-    private Integer maxExitLevel  = 0;
     @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
     public List<TraceExit> traceExits = new ArrayList<>();
 

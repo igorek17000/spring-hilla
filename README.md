@@ -24,12 +24,12 @@
 - 거래가 되고 있다면 ?
 - 거래가 안되고 있다면 봉기준 데이터를 이용하여 지점에 도달했는지 계산
   1. [거래 금액이 달라졌을시만 체크]
-  2. [common_trace_set] 데이터가 성공적으로 값이 있을시만 이전 금액 저장해야함
+  2. [traceTargetSet] 데이터가 성공적으로 값이 있을시만 이전 금액 저장해야함
   3. 실행시 최초 한번만 조회
 - 지점에 도달했을시 이쪽으로 Rest Api 실행
 
 ##### [Socket Jar 주의점]
 1. 중복 실행 안되게 설정
-2. common_trace_set 종료안된 시점에서 common_trace_start 실행하면 안됨
+2. traceTargetSet 종료안된 시점에서 traceExitSet 실행하면 안됨
 3. 항상 실행되고 있음 individual_check
 4. 판매할때도 안팔릴시 어떻게 처리할지 생각해봐야함

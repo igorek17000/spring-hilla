@@ -34,11 +34,10 @@ public class TraceService {
     private final TraceRateRepository traceRateRepository;
     private final MemberRepository memberRepository;
     private final MemberApiRepository memberApiRepository;
-
     private final BongBaseRepository bongBaseRepository;
 
     /**
-     * 비트코인 거래 설정
+     * 진입 금액 세팅
      * @param minuteBong 봉
      * @param price 진입 금액 (완전 현재가 아님)
      * @param isBuy 매수,매도 여부
@@ -281,7 +280,6 @@ public class TraceService {
                                                                                         false,
                                                                                         false,
                                                                                         new ArrayList<>(),
-                                                                                        bongBase.getExitRates().size(),
                                                                                         new ArrayList<>(),
                                                                                         new ArrayList<>(),
                                                                                         LocalDateTime.now(),
@@ -353,7 +351,7 @@ public class TraceService {
     }
 
     /**
-     * 비트코인 거래 세팅된 값으로 시작
+     * 진입 금액이 맞는지 확인 후 청산 금액 세팅
      * @param minuteBong 봉
      * @return List<Trace>
      */
@@ -460,7 +458,6 @@ public class TraceService {
                                             traceEnterList.forEach(
                                                     traceEnter -> {
 
-
                                                         if (!myOrderDataListFilled.stream()
                                                                 .map(BybitMyOrderData::getOrder_id)
                                                                 .collect(Collectors.toList())
@@ -469,13 +466,13 @@ public class TraceService {
                                                             log.info("정상 구매가 되지않았을 경우");
 
                                                             // TODO 일부만 구매 되었을 경우 [금액 조정, qty 조정]
-                                                            // TODO 구매 취소 & 데이터 날려야함
                                                             log.info("부분 구매가 된 경우");
                                                             if (myOrderDataListPartiallyFilled.stream()
                                                                     .map(BybitMyOrderData::getOrder_id)
                                                                     .collect(Collectors.toList())
                                                                     .contains(traceEnter.getOrderId())) {
 
+                                                                // TODO 작업
                                                                 log.info("취소 처리하고 수량 조절");
 
                                                             } else {
@@ -489,6 +486,7 @@ public class TraceService {
 
                                                             log.info("정상 구매가 완료되었을 때");
                                                             log.info("DB <-> Bybit 데이터가 맞는지 확인 후 일치화 시켜야함");
+                                                            // TODO 작업
                                                         }
                                                     }
                                             );
@@ -496,14 +494,17 @@ public class TraceService {
                                             log.info("부분 구매도 안된 데이터는 삭제 (DB)");
                                             traceEnterRepository.deleteAll(deleteTraceEnter);
 
-                                            // TODO 손절금액, 비율은 확인 후 설정해야함 Trace
+                                            // TODO 작업
                                             log.info("8. 거래 데이터에 봉 수익, 손절 퍼센트 기준, 구매 중지 데이터 저장");
+
+                                            // TODO Trace 값 수정 (lossPrice, enterEndRate, lossRate)
 
                                             log.info("qty: 비율 계산 해야함(올림)");
                                             log.info("addQty: 누적으로 계산한뒤 총 qty 에서 마지막 전 데이터까지 누적 qty 를 빼주기 위해 계산");
                                             int totalQty = traceEnterList.stream().map(TraceEnter::getQty).reduce(0, Integer::sum);
                                             var addQty = 0;
-                                            for (var exitRate : exitRates) {
+
+                                            for ( var exitRate : exitRates ) {
 
                                                 log.info("청산 exitQty");
                                                 var exitQty = 0;
@@ -515,7 +516,7 @@ public class TraceService {
                                                     var traceRate = exitRate.getTraceRate();
                                                     exitQty = (int) Math.ceil(exitQty * ((double) traceRate / 100));
                                                     addQty += exitQty;
-                                                    log.info("exitQty: " + exitQty + "(" + addQty + ")");
+                                                    log.info("exitQty (" + exitRate.getSort() + "): " + exitQty + "(" + addQty + ")");
                                                 }
 
                                                 log.info("[목표가 계산하기]");
@@ -523,10 +524,10 @@ public class TraceService {
                                                 log.info("Sell = 현재가 - ( 기준(고점) - 현재가 )");
                                                 var price       = trace.getPrice();     /* 현재가 (진입금액) */
                                                 var basePrice   = trace.getBasePrice(); /* 기준(저점, 고점) */
-                                                var targetPrice = isBuy ? price + (price - basePrice) : price - (basePrice - price);
+                                                var targetPrice = isBuy ? price + (price - basePrice) : price - (basePrice - price); /* 목표가 */
 
 
-                                                log.info("[청산 금액, 손절금액 계산하기]");
+                                                log.info("[청산 금액, 손절 금액 계산하기]");
                                                 log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
                                                 var exitPrice = basePrice + (targetPrice - basePrice) * exitRate.getExitRate();
                                                 var lossPrice = basePrice + (targetPrice - basePrice) * exitRate.getLossRate();
@@ -577,6 +578,7 @@ public class TraceService {
                                             }
 
                                             log.info("청산 처리가 완료된 경우 저장 결과값 리턴 저장");
+                                            trace.setStartFlag(true);
                                             resultList.add(trace);
                                         }
                                     }
