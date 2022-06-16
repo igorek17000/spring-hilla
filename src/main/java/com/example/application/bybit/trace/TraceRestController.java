@@ -16,14 +16,14 @@ public class TraceRestController {
     private final TraceService traceService;
 
     @GetMapping("/{minuteBong}/{price}")
-    public List<Trace> common_trace_set(
+    public List<Trace> traceTargetSet(
             @PathVariable Integer minuteBong,
             @PathVariable Double price,
             @RequestParam(name = "isBuy", defaultValue = "true") boolean isBuy,
             @RequestParam(name = "basePrice", defaultValue = "0.0") Double basePrice
 
     ){
-        var traces = traceService.commonTraceSet(minuteBong, price, isBuy, basePrice);
+        var traces = traceService.traceTargetSet(minuteBong, price, isBuy, basePrice);
         if (traces.size() == 0) {
             return null;
         }
@@ -31,38 +31,13 @@ public class TraceRestController {
     }
 
     @GetMapping("/{minuteBong}")
-    public List<Trace> common_trace_start(
+    public List<Trace> traceExitSet(
             @PathVariable Integer minuteBong
     ){
-        var traces = traceService.commonTraceStart(minuteBong);
-
+        var traces = traceService.traceExitSet(minuteBong);
         if (traces.size() == 0) {
             return null;
         }
         return traces;
     }
-
-    // TODO 수정해야함
-    @GetMapping("/individual/{memberIdx}/{minuteBong}")
-    public String individual_check(
-            @PathVariable Integer memberIdx,
-            @PathVariable Integer minuteBong
-    ){
-
-//        var optionalMemberApi = memberService.getApi(memberIdx, minuteBong);
-//
-//        if (optionalMemberApi.isPresent()) {
-//
-//            var memberApi = optionalMemberApi.get();
-//
-//            var client = new StandardWebSocketClient();
-//            var handler = new TraceIndividualHandler(traceService, memberApi.getSecretKey(), memberApi.getApiKey(), memberIdx, minuteBong);
-//            var connectionManager = new WebSocketConnectionManager(client, handler,"wss://stream.bybit.com/realtime");
-//            connectionManager.start();
-//
-//            return "OK";
-//        }
-        return "FAIL";
-    }
-
 }

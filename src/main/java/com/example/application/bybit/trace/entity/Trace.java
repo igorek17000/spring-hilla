@@ -35,6 +35,9 @@ public class Trace {
     private Double  price         = 0.0; /* 진입점 금액 */
     private Double  lossPrice     = 0.0; /* 손절 금액 Start 설정해야함 */
 
+    private Double enterEndRate   = 0.0; // 진입하면 안되는 지점
+    private Double lossRate       = 0.0; // 손절 위치 지점
+
     private boolean buyFlag    = true;
     private boolean startFlag  = false;
     private boolean endFlag    = false;

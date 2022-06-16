@@ -29,7 +29,6 @@ public class BongBase {
     @Column(unique = true, nullable = false)
     private Integer minuteBong;
 
-    private Double enterRate;    // 진입 시작지점
     private Double enterEndRate; // 진입하면 안되는 지점
     private Double lossRate;     // 손절 위치 지점
 
