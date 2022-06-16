@@ -20,7 +20,9 @@ public class BybitOrderUtil {
     private final static String order_list_url = "https://api.bybit.com/v2/private/order/list?";
     private final static String order_cancel_url = "https://api.bybit.com/v2/private/order/cancel?";
     private final static String public_order_list = "https://api.bybit.com/v2/public/orderBook/L2?symbol=BTCUSD";
-    private final static String my_wallet = "/v2/private/wallet/balance?";
+    private final static String my_wallet = "https://api.bybit.com/v2/private/wallet/balance?";
+
+    private final static String execution_list = "https://api.bybit.com/v2/private/execution/list?";
 
     /**
      * <p>내가 가진 비트 코인 조회</p>
@@ -247,6 +249,45 @@ public class BybitOrderUtil {
 
             // Slack 알림
 
+            return null;
+        }
+    }
+
+    /**
+     * <p>거래 내역 조회 (펀딩비 포함)</p>
+     * <a href="https://bybit-exchange.github.io/docs/inverse/#t-usertraderecords"> 참고 링크 </a>
+     */
+    public static ResponseEntity<?> execution_list(
+            String apiKey,
+            String secretKey
+    ) {
+
+        var map = new TreeMap<String, String>(String::compareTo);
+
+        map.put("api_key",   apiKey);
+        map.put("timestamp", ZonedDateTime.now().toInstant().toEpochMilli()+"");
+        map.put("symbol", "BTCUSD");
+
+        try {
+            var queryString = BybitEncryption.genQueryString(map, secretKey);
+
+            var template = new RestTemplate();
+            var response = template.getForEntity(
+                    execution_list + queryString,
+                    String.class
+            );
+
+            var body = response.getBody();
+
+            log.info("execution_list: " + response.getStatusCode());
+            log.info("execution_list: " + body);
+
+            return response;
+
+        } catch (NoSuchAlgorithmException | InvalidKeyException e){
+            e.printStackTrace();
+
+            // Slack 알림
             return null;
         }
     }
