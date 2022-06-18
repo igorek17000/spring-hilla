@@ -1,4 +1,4 @@
-package com.example.application.bybit.trace.entity;
+package com.example.application.bybit.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,7 +15,6 @@ import javax.persistence.Id;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SlackNotification {
-
     @Id
     @GeneratedValue
     private Integer idx;

@@ -1,6 +1,5 @@
 package com.example.application.bybit.util;
 
-import com.example.application.bybit.trace.repository.SlackNotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -23,9 +22,7 @@ public class SlackNotificationUtil {
 
         var entity = new HttpEntity<Map<String,Object>>(request);
 
-        String url = channel_url; // slack app에 등록후 발급받은 hook url
-
-        restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        restTemplate.exchange(channel_url, HttpMethod.POST, entity, String.class);
 
     }
 

@@ -35,6 +35,7 @@ public class TraceService {
     private final MemberRepository memberRepository;
     private final MemberApiRepository memberApiRepository;
     private final BongBaseRepository bongBaseRepository;
+    private final TraceFailLog traceFailLog;
 
     /**
      * 진입 금액 세팅
@@ -77,6 +78,9 @@ public class TraceService {
                 if (bongBaseOptional.isEmpty()){
                     // Slack 알람
                     log.error("5-fail. " + minuteBong + "진입 데이터가 없습니다.");
+
+
+
                     return resultList;
                 }
 

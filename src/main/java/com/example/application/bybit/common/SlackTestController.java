@@ -1,6 +1,6 @@
-package com.example.application.bybit.monitor;
+package com.example.application.bybit.common;
 
-import com.example.application.bybit.trace.repository.SlackNotificationRepository;
+import com.example.application.bybit.common.SlackNotificationRepository;
 import com.example.application.bybit.util.SlackNotificationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
