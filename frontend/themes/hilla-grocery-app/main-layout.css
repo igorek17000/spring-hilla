@@ -45,6 +45,19 @@
   color: var(--lumo-secondary-text-color);
 }
 
+.logout-btn{
+  position: absolute;
+  top: 15px;
+  right: 10px;
+  font-size: 20px;
+  color: black;
+  cursor: pointer;
+  border: 0;
+  outline: 0;
+  background-color: rgba(255,255,255,1);
+  font-weight: 600;
+}
+
 .menu-item-text {
   font-weight: 500;
   font-size: var(--lumo-font-size-s);

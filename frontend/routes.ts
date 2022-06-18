@@ -1,5 +1,4 @@
 import { Route } from '@vaadin/router';
-import './views/grocery/grocery-view';
 import './views/monitoring/balance';
 import './views/monitoring/pnl';
 import './views/monitoring/execute';

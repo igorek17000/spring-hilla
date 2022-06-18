@@ -27,6 +27,9 @@ export class MainLayout extends Layout {
         <header class="view-header" slot="navbar">
           <vaadin-drawer-toggle aria-label="Menu toggle" class="view-toggle" theme="contrast"></vaadin-drawer-toggle>
           <h1 class="view-title">${appStore.currentViewTitle}</h1>
+          <form id="logout-form" action="/logout" method="post">
+            <button class="logout-btn" type="submit">logout</button>
+          </form>
         </header>
         <section class="drawer-section" slot="drawer">
           <h2 class="app-name">${appStore.applicationName}</h2>

@@ -1,9 +1,6 @@
 package com.example.application.member;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -17,10 +14,15 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Member {
     @Id
     @GeneratedValue
     private Integer idx;
+
+    private String username;
+    private String password;
+    private String role;
 
     private String name;
 

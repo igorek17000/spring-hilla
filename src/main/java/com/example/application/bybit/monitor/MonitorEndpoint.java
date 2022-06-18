@@ -1,10 +1,15 @@
 package com.example.application.bybit.monitor;
 
+import com.example.application.bybit.auth.UserDetailsImpl;
+import com.example.application.bybit.common.SlackNotificationLog;
+import com.example.application.bybit.common.SlackNotificationLogRepository;
+import com.example.application.bybit.common.SlackNotificationRepository;
 import com.example.application.bybit.monitor.dto.BalanceItem;
 import com.example.application.bybit.monitor.dto.ExecuteItem;
 import com.example.application.bybit.monitor.dto.PnlItem;
 import com.example.application.bybit.util.BybitEncryption;
 import com.example.application.bybit.util.BybitOrderUtil;
+import com.example.application.bybit.util.SlackNotificationUtil;
 import com.example.application.member.MemberApi;
 import com.example.application.member.MemberApiRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -14,18 +19,24 @@ import dev.hilla.Endpoint;
 import dev.hilla.Nonnull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.joda.time.LocalDateTime;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.security.PermitAll;
+import javax.annotation.security.RolesAllowed;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.Principal;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.*;
 
@@ -36,21 +47,45 @@ import java.util.*;
 public class MonitorEndpoint {
 
     private final MemberApiRepository memberApiRepository;
+
+    private final SlackNotificationRepository slackNotificationRepository;
+    private final SlackNotificationLogRepository slackNotificationLogRepository;
     private ObjectMapper om = new ObjectMapper();
 
     //-----------------------------------------BALANCE--------------------------------------------
+    @PermitAll
     public @Nonnull List<@Nonnull BalanceItem> getBalance() throws JsonProcessingException{
-        List<BalanceItem> balanceItems = new ArrayList<>();
+        var principal = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        var balanceItems = new ArrayList<BalanceItem>();
         var restTemplate = new RestTemplate();
-        var member = memberApiRepository.findByMemberIdx(1);
+        var member = memberApiRepository.findByMemberUsername(principal.getUsername());
 
         for (MemberApi api:member
         ) {
             // BTC
             var response = BybitOrderUtil.my_wallet(api.getApiKey(),api.getSecretKey());
             if(response == null || !response.getStatusCode().equals(HttpStatus.OK) || response.getBody() == null){
-                //TODO slack
                 log.info("Monitoring Web : 잔액 조회 실패");
+
+                var slackNotificationOptional = slackNotificationRepository.findById(1);
+
+                if (slackNotificationOptional.isPresent()) {
+                    var slackNotification = slackNotificationOptional.get();
+                    var slackMsg = "Monitoring Web - balance get fail , member api id : "+api.getIdx();
+                    var slackNotificationLog = slackNotificationLogRepository.save(
+                            new SlackNotificationLog(
+                                    null,
+                                    slackNotification,
+                                    "/balance",
+                                    "getBalance",
+                                    slackMsg,
+                                    "",
+                                    LocalDateTime.now()
+                            )
+                    );
+                    SlackNotificationUtil.send(slackMsg, slackNotification.getUrl(), slackNotificationLog);
+                }
+
             }else{
                 HashMap<String,Map<String, Map<String,Double>>> body = om.readValue(response.getBody().toString(), HashMap.class);
                 var decimal = BigDecimal.valueOf(body.get("result").get("BTC").get("equity"));
@@ -81,9 +116,11 @@ public class MonitorEndpoint {
 
     //-----------------------------------------CLOSED P&L--------------------------------------------
     public @Nonnull List<@Nonnull PnlItem> getPnls(int minute) throws NoSuchAlgorithmException, InvalidKeyException, JsonProcessingException {
+        var principal = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
         // TODO DB 데이터 쌓이면 TRACE 데이터로 수정
         var restTemplate = new RestTemplate();
-        var member = memberApiRepository.findByMinuteBongAndMemberIdx(minute,1);
+        var member = memberApiRepository.findByMinuteBongAndMemberUsername(minute, principal.getUsername());
 
         List<PnlItem> pnls = new ArrayList<>();
 
@@ -133,8 +170,11 @@ public class MonitorEndpoint {
     }
 
     //-----------------------------------------EXECUTION LIST--------------------------------------------
+    @PermitAll
     public @Nonnull List<@Nonnull ExecuteItem> getExecute(int minute) throws JsonProcessingException {
-        var member = memberApiRepository.findByMinuteBongAndMemberIdx(minute,1);
+        var principal = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        var member = memberApiRepository.findByMinuteBongAndMemberUsername(minute,principal.getUsername());
 
         List<ExecuteItem> executeItems = new ArrayList<>();
 
@@ -146,6 +186,26 @@ public class MonitorEndpoint {
 
             if(response == null || !response.getStatusCode().equals(HttpStatus.OK) || response.getBody() == null){
                 log.info("Monitoring Web : 거래 내역 조회 실패");
+
+                var slackNotificationOptional = slackNotificationRepository.findById(1);
+
+                if (slackNotificationOptional.isPresent()) {
+                    var slackNotification = slackNotificationOptional.get();
+                    var slackMsg = "Monitoring Web - execute list get fail , member api id : "+memberApi.getIdx();
+                    var slackNotificationLog = slackNotificationLogRepository.save(
+                            new SlackNotificationLog(
+                                    null,
+                                    slackNotification,
+                                    "/execute",
+                                    "getExecute",
+                                    slackMsg,
+                                    "",
+                                    LocalDateTime.now()
+                            )
+                    );
+                    SlackNotificationUtil.send(slackMsg, slackNotification.getUrl(), slackNotificationLog);
+                }
+
             }else{
                 HashMap<String, Map<String, List<Map<String, Object>>>> body = om.readValue(response.getBody().toString(), HashMap.class);
 

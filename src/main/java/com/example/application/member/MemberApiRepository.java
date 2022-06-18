@@ -11,5 +11,6 @@ public interface MemberApiRepository extends JpaRepository<MemberApi, Integer> {
     List<MemberApi> findByMinuteBongAndMemberIdxIn(Integer minuteBong, Collection<Integer> member_idx);
 
     List<MemberApi> findByMemberIdx(Integer member_idx);
-
+    List<MemberApi> findByMemberUsername(String username);
+    Optional<MemberApi> findByMinuteBongAndMemberUsername(Integer minuteBong, String username);
 }

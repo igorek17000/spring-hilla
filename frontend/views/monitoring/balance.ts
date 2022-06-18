@@ -22,20 +22,20 @@ export class BalanceView extends View {
             <div class="p-m">
              <h3>Balance</h3>
              <vaadin-grid .items="${this.balances}" theme="row-stripes" style="max-width: 800px">
-              <vaadin-grid-column width="200px" path="minute"  ></vaadin-grid-column>
+              <vaadin-grid-column width="200px" path="minute" ></vaadin-grid-column>
               <vaadin-grid-column width="200px" path="btc"></vaadin-grid-column>
               <vaadin-grid-column width="200px" path="usd"></vaadin-grid-column>
-              <vaadin-grid-column width="200px" path="won"></vaadin-grid-column>
+               <vaadin-grid-column width="200px" path="won"></vaadin-grid-column>
              </vaadin-grid>
             </div>
     `;
   }
 
   async firstUpdated() {
-    this.balances = await getBalance();
-    // window.setInterval(async () => {
-    //   this.balances=await getBalance()
-    // },5000)
+    this.balances = await getBalance()
+    window.setInterval(async () => {
+      this.balances = await getBalance()
+    },5000)
   }
 
 }
