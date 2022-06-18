@@ -1,10 +1,14 @@
 package com.example.application.bybit.trace;
 
+import com.example.application.bybit.common.SlackNotificationLog;
+import com.example.application.bybit.common.SlackNotificationLogRepository;
+import com.example.application.bybit.common.SlackNotificationRepository;
 import com.example.application.bybit.trace.dto.response.*;
 import com.example.application.bybit.trace.entity.*;
 import com.example.application.bybit.trace.repository.*;
 import com.example.application.bybit.trace.enums.*;
 import com.example.application.bybit.util.BybitOrderUtil;
+import com.example.application.bybit.util.SlackNotificationUtil;
 import com.example.application.member.Member;
 import com.example.application.member.MemberApiRepository;
 import com.example.application.member.MemberRepository;
@@ -35,6 +39,14 @@ public class TraceService {
     private final MemberRepository memberRepository;
     private final MemberApiRepository memberApiRepository;
     private final BongBaseRepository bongBaseRepository;
+    private final SlackNotificationRepository slackNotificationRepository;
+    private final SlackNotificationLogRepository slackNotificationLogRepository;
+
+
+    private final String targetSetRequestPath = "/trace/target/set";
+    private final String exitSetRequestPath   = "/exit/set";
+    private final String exitSetMethodName    = "traceExitSet";
+    private final String targetSetMethodName  = "traceTargetSet";
 
     /**
      * 진입 금액 세팅
@@ -52,10 +64,16 @@ public class TraceService {
             Double basePrice
     ) {
 
-        var objectMapper = new ObjectMapper();
-
         log.info("1. resultList: 결과값 Return 해주기 위한 변수");
         var resultList = new ArrayList<Trace>();
+
+        log.info("Slack 알림 설정을 위한 세팅");
+        var objectMapper = new ObjectMapper();
+        var slackNotificationOptional = slackNotificationRepository.findById(1);
+        if (slackNotificationOptional.isEmpty()){
+            return resultList;
+        }
+        var slackNotification = slackNotificationOptional.get();
 
         log.info("2. members: 비트코인 거래중인 회원 데이터 모두 불러오기");
         var members = memberRepository.findByTraceYn("Y");
@@ -75,10 +93,20 @@ public class TraceService {
                 log.info("5. 진입 기준 데이터 가져오기");
                 var bongBaseOptional =  bongBaseRepository.findByMinuteBong(minuteBong);
                 if (bongBaseOptional.isEmpty()){
-                    // Slack 알람
-                    log.error("5-fail. " + minuteBong + "진입 데이터가 없습니다.");
-
-
+                    var errorMsg = "5-fail. " + minuteBong + "진입 데이터가 없습니다.";
+                    log.error(errorMsg);
+                    var slackNotificationLog =  slackNotificationLogRepository.save(
+                            new SlackNotificationLog(
+                                    null,
+                                    slackNotification,
+                                    targetSetRequestPath,
+                                    targetSetMethodName,
+                                    errorMsg,
+                                    null,
+                                    LocalDateTime.now()
+                            )
+                    );
+                    SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
 
                     return resultList;
                 }
