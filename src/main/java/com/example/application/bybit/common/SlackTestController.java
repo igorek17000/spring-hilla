@@ -14,9 +14,8 @@ public class SlackTestController {
 
 
     @PostMapping("/slack")
-    public void testslack(){
-        var url = slackNotificationRepository.findById(1);
-        var slack = new SlackNotificationUtil();
-        slack.send("테스트 메셎지",url.get().getUrl());
+    public void testSlack(){
+        var slackNotificationOptional = slackNotificationRepository.findById(1);
+        slackNotificationOptional.ifPresent(slackNotification -> SlackNotificationUtil.send("테스트 메세지", slackNotification.getUrl()));
     }
 }

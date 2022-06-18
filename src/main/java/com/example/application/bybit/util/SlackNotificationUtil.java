@@ -11,8 +11,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SlackNotificationUtil {
 
-    public void send(String message, String channel_url){
-
+    public static void send(String message, String channel_url){
         var restTemplate = new RestTemplate();
 
         var request = new HashMap<String,Object>();
@@ -23,7 +22,6 @@ public class SlackNotificationUtil {
         var entity = new HttpEntity<Map<String,Object>>(request);
 
         restTemplate.exchange(channel_url, HttpMethod.POST, entity, String.class);
-
     }
 
 }
