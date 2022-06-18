@@ -21,11 +21,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-// TODO 전체 실패 로그 DB에 저장, 슬랙 알림 보내기
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -57,7 +58,7 @@ public class TraceService {
      * @return List<Trace>
      */
     @Transactional
-    public List<Trace> traceTargetSet(
+    public TraceTargetSetResult traceTargetSet(
             Integer minuteBong,
             Double price,
             boolean isBuy,
@@ -65,13 +66,15 @@ public class TraceService {
     ) {
 
         log.info("1. resultList: 결과값 Return 해주기 위한 변수");
-        var resultList = new ArrayList<Trace>();
+        var result = new TraceTargetSetResult();
+        var resultTraceList = new ArrayList<Trace>();
 
         log.info("Slack 알림 설정을 위한 세팅");
         var objectMapper = new ObjectMapper();
         var slackNotificationOptional = slackNotificationRepository.findById(1);
         if (slackNotificationOptional.isEmpty()){
-            return resultList;
+            result.setResult(TARGET_RESULT.NO_SLACK);
+            return result;
         }
         var slackNotification = slackNotificationOptional.get();
 
@@ -108,14 +111,30 @@ public class TraceService {
                     );
                     SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
 
-                    return resultList;
+                    result.setResult(TARGET_RESULT.NO_BONG_TARGET_BASE);
+                    return result;
                 }
 
                 log.info("6. 청산 기준 퍼센트 기준 확인");
                 if (bongBaseOptional.get().getExitRates().size() == 0) {
-                    // Slack 알람
-                    log.error("6-fail. "+ minuteBong + "청산 퍼센트 기준 데이터가 없습니다.");
-                    return resultList;
+
+                    var errorMsg = "6-fail. "+ minuteBong + "청산 퍼센트 기준 데이터가 없습니다.";
+                    log.error(errorMsg);
+                    var slackNotificationLog =  slackNotificationLogRepository.save(
+                            new SlackNotificationLog(
+                                    null,
+                                    slackNotification,
+                                    targetSetRequestPath,
+                                    targetSetMethodName,
+                                    errorMsg,
+                                    null,
+                                    LocalDateTime.now()
+                            )
+                    );
+                    SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+
+                    result.setResult(TARGET_RESULT.NO_BONG_EXIT_BASE);
+                    return result;
                 }
 
                 log.info("bongBase: 청산, 진입 기준 데이터");
@@ -165,15 +184,39 @@ public class TraceService {
                                                     );
 
                                                     if (orderCancelResponse == null || (!HttpStatus.OK.equals(orderCancelResponse.getStatusCode())) || orderCancelResponse.getBody() == null) {
-                                                        // Slack 알림
-                                                        log.error("10-fail. " + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 실패");
+                                                        var errorMsg = "10-fail. " + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 실패";
+                                                        log.error(errorMsg);
+                                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                new SlackNotificationLog(
+                                                                        null,
+                                                                        slackNotification,
+                                                                        targetSetRequestPath,
+                                                                        targetSetMethodName,
+                                                                        errorMsg,
+                                                                        null,
+                                                                        LocalDateTime.now()
+                                                                )
+                                                        );
+                                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                     } else {
 
                                                         try {
                                                             var bybitMyOrderCancel = objectMapper.readValue(orderCancelResponse.getBody().toString(), BybitMyOrderCancel.class);
                                                             if (bybitMyOrderCancel.getRet_code() != 0) {
-                                                                // Slack 알람
-                                                                log.error("10-fail-2. "  + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 실패 (Bybit) Ret_code: " + bybitMyOrderCancel.getRet_code() + "(" +bybitMyOrderCancel.getRet_msg() + ")");
+                                                                var errorMsg = "10-fail-2. "  + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 실패 (Bybit) Ret_code: " + bybitMyOrderCancel.getRet_code() + "(" +bybitMyOrderCancel.getRet_msg() + ")";
+                                                                log.error(errorMsg);
+                                                                var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                        new SlackNotificationLog(
+                                                                                null,
+                                                                                slackNotification,
+                                                                                targetSetRequestPath,
+                                                                                targetSetMethodName,
+                                                                                errorMsg,
+                                                                                "",
+                                                                                LocalDateTime.now()
+                                                                        )
+                                                                );
+                                                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                             } else {
 
                                                                 log.info("11. Bybit 주문 활성 취소를 성공시 주문[DB] 데이터도 삭제");
@@ -185,8 +228,22 @@ public class TraceService {
 
                                                             }
                                                         } catch (JsonProcessingException e) {
-                                                            // Slack 알림
-                                                            log.error("10-fail-JsonProcessingException. "  + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 데이터 변환 (Bybit)");
+                                                            var stringWriter = new StringWriter();
+                                                            e.printStackTrace(new PrintWriter(stringWriter));
+                                                            var errorMsg = "10-fail-JsonProcessingException. "  + memberApi.getApiKey() + "," +  data.getOrder_id() + " 주문 취소 데이터 변환 (Bybit)";
+                                                            log.error(errorMsg);
+                                                            var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                    new SlackNotificationLog(
+                                                                            null,
+                                                                            slackNotification,
+                                                                            targetSetRequestPath,
+                                                                            targetSetMethodName,
+                                                                            errorMsg,
+                                                                            stringWriter.toString(),
+                                                                            LocalDateTime.now()
+                                                                    )
+                                                            );
+                                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                         }
                                                     }
                                                 }
@@ -195,8 +252,20 @@ public class TraceService {
                                         log.info("12. [Bybit Rest] 내가 가진 비트 코인 조회");
                                         var walletResponse = BybitOrderUtil.my_wallet(memberApi.getApiKey(), memberApi.getSecretKey());
                                         if (walletResponse == null || !walletResponse.getStatusCode().equals(HttpStatus.OK) || walletResponse.getBody() == null) {
-                                            // Slack 알람
-                                            log.error("12-fail. " + memberApi.getApiKey() + "내가 가진 비트 코인 조회를 실패했습니다. (bybit)");
+                                            var errorMsg = "12-fail. " + memberApi.getApiKey() + "내가 가진 비트 코인 조회를 실패했습니다. (bybit)";
+                                            log.error(errorMsg);
+                                            var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                    new SlackNotificationLog(
+                                                            null,
+                                                            slackNotification,
+                                                            targetSetRequestPath,
+                                                            targetSetMethodName,
+                                                            errorMsg,
+                                                            "",
+                                                            LocalDateTime.now()
+                                                    )
+                                            );
+                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                         } else {
                                             try {
                                                 var bybitMyWallet = objectMapper.readValue(walletResponse.getBody().toString(), BybitMyWallet.class);
@@ -206,8 +275,20 @@ public class TraceService {
                                                     var positionQty = 0;
                                                     ResponseEntity<?> positionResponse = BybitOrderUtil.position(memberApi.getApiKey(), memberApi.getSecretKey());
                                                     if (positionResponse == null || !positionResponse.getStatusCode().equals(HttpStatus.OK) || positionResponse.getBody() == null) {
-                                                        // Slack 알림
-                                                        log.error("13-fail. " + memberApi.getApiKey() + ", 포지션 조회를 실패했습니다. (Bybit)");
+                                                        var errorMsg = "13-fail. " + memberApi.getApiKey() + ", 포지션 조회를 실패했습니다. (Bybit)";
+                                                        log.error(errorMsg);
+                                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                new SlackNotificationLog(
+                                                                        null,
+                                                                        slackNotification,
+                                                                        targetSetRequestPath,
+                                                                        targetSetMethodName,
+                                                                        errorMsg,
+                                                                        "",
+                                                                        LocalDateTime.now()
+                                                                )
+                                                        );
+                                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                     } else {
 
                                                         try {
@@ -218,8 +299,22 @@ public class TraceService {
                                                                 log.info("position Side 여부에 따라 * -1 해줘야함 (" + positionQty + ")");
                                                             }
                                                         } catch (JsonProcessingException e ){
-                                                            // Slack 알림
-                                                            log.error("14-fail-JsonProcessingException. " + memberApi.getApiKey() + ", Bybit 포지션 조회 데이터 변환을 실패했습니다. (Bybit)");
+                                                            var stringWriter = new StringWriter();
+                                                            e.printStackTrace(new PrintWriter(stringWriter));
+                                                            var errorMsg = "14-fail-JsonProcessingException. " + memberApi.getApiKey() + ", Bybit 포지션 조회 데이터 변환을 실패했습니다. (Bybit)";
+                                                            log.error(errorMsg);
+                                                            var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                    new SlackNotificationLog(
+                                                                            null,
+                                                                            slackNotification,
+                                                                            targetSetRequestPath,
+                                                                            targetSetMethodName,
+                                                                            errorMsg,
+                                                                            stringWriter.toString(),
+                                                                            LocalDateTime.now()
+                                                                    )
+                                                            );
+                                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                         }
                                                     }
 
@@ -232,8 +327,20 @@ public class TraceService {
 
                                                             var bybitRePublicOrder = objectMapper.readValue(rePublicOrderResponseEntity.getBody().toString(), BybitPublicOrder.class);
                                                             if (bybitRePublicOrder.getRet_code() != 0) {
-                                                                // Slack 알람
-                                                                log.error("15-fail-1. " + memberApi.getApiKey() + ", 다시 실제 거래내역 조회를 실패했습니다. (Bybit) Ret_code: " + bybitRePublicOrder.getRet_code() + "(" +bybitRePublicOrder.getRet_msg() + ")");
+                                                                var errorMsg = "15-fail-1. " + memberApi.getApiKey() + ", 다시 실제 거래내역 조회를 실패했습니다. (Bybit) Ret_code: " + bybitRePublicOrder.getRet_code() + "(" +bybitRePublicOrder.getRet_msg() + ")";
+                                                                log.error(errorMsg);
+                                                                var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                        new SlackNotificationLog(
+                                                                                null,
+                                                                                slackNotification,
+                                                                                targetSetRequestPath,
+                                                                                targetSetMethodName,
+                                                                                errorMsg,
+                                                                                "",
+                                                                                LocalDateTime.now()
+                                                                        )
+                                                                );
+                                                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                             } else {
 
                                                                 var bybitPublicOrderDataList = bybitRePublicOrder.getResult();
@@ -276,16 +383,40 @@ public class TraceService {
                                                                     );
 
                                                                     if (responseEntity == null || !responseEntity.getStatusCode().equals(HttpStatus.OK) || responseEntity.getBody() == null) {
-                                                                        // Slack 알림
-                                                                        log.error("19-fail. 구매 지정가 조회 실패" + memberApi.getMember() + ", qty: " + (int) Math.floor(qty) + "realPrice: " + realPrice + " 구매를 실패했습니다. (Bybit)");
+                                                                        var errorMsg = "19-fail. 구매 지정가 조회 실패" + memberApi.getMember() + ", qty: " + (int) Math.floor(qty) + "realPrice: " + realPrice + " 구매를 실패했습니다. (Bybit)";
+                                                                        log.error(errorMsg);
+                                                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                                new SlackNotificationLog(
+                                                                                        null,
+                                                                                        slackNotification,
+                                                                                        targetSetRequestPath,
+                                                                                        targetSetMethodName,
+                                                                                        errorMsg,
+                                                                                        "",
+                                                                                        LocalDateTime.now()
+                                                                                )
+                                                                        );
+                                                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                                     } else {
                                                                         try {
                                                                             var bybitOrder = objectMapper.readValue(responseEntity.getBody().toString(), BybitOrder.class);
                                                                             if (bybitOrder.getRet_code() != 0) {
-                                                                                // Slack 알림
-                                                                                log.error("19-fail-2. 구매 지정가 조회 실패" + memberApi.getMember() + ", qty: "
+                                                                                var errorMsg = "19-fail-2. 구매 지정가 조회 실패" + memberApi.getMember() + ", qty: "
                                                                                         + (int) Math.floor(qty) + "realPrice: " + realPrice + " 구매를 실패했습니다. (Bybit)  Ret_code: "
-                                                                                        + bybitOrder.getRet_code() + "(" +bybitOrder.getRet_msg() + ")");
+                                                                                        + bybitOrder.getRet_code() + "(" +bybitOrder.getRet_msg() + ")";
+                                                                                log.error(errorMsg);
+                                                                                var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                                        new SlackNotificationLog(
+                                                                                                null,
+                                                                                                slackNotification,
+                                                                                                targetSetRequestPath,
+                                                                                                targetSetMethodName,
+                                                                                                errorMsg,
+                                                                                                "",
+                                                                                                LocalDateTime.now()
+                                                                                        )
+                                                                                );
+                                                                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                                             } else {
 
                                                                                 log.info("20. 거래 데이터가 있는지 확인");
@@ -327,12 +458,26 @@ public class TraceService {
 
 
                                                                                 log.info("24. 결과값 저장");
-                                                                                resultList.add(trace);
+                                                                                resultTraceList.add(trace);
 
                                                                             }
                                                                         }catch (JsonProcessingException e){
-                                                                            // Slack 알림
-                                                                            log.error("19-fail-JsonProcessingException. " + memberApi.getMember() + ", qty: " + (int) Math.floor(qty) + "realPrice: " + realPrice + " 구매를 실패했습니다. Json 변환 실패 (Bybit)");
+                                                                            var stringWriter = new StringWriter();
+                                                                            e.printStackTrace(new PrintWriter(stringWriter));
+                                                                            var errorMsg = "19-fail-JsonProcessingException. " + memberApi.getMember() + ", qty: " + (int) Math.floor(qty) + "realPrice: " + realPrice + " 구매를 실패했습니다. Json 변환 실패 (Bybit)";
+                                                                            log.error(errorMsg);
+                                                                            var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                                    new SlackNotificationLog(
+                                                                                            null,
+                                                                                            slackNotification,
+                                                                                            targetSetRequestPath,
+                                                                                            targetSetMethodName,
+                                                                                            errorMsg,
+                                                                                            stringWriter.toString(),
+                                                                                            LocalDateTime.now()
+                                                                                    )
+                                                                            );
+                                                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                                         }
                                                                     }
 
@@ -342,43 +487,135 @@ public class TraceService {
                                                             }
 
                                                         } catch (JsonProcessingException e) {
-                                                            // Slack 알람
-                                                            log.error("15-fail-JsonProcessingException. " + memberApi.getApiKey() + ", 다시 실제 거래내역 조회를 실패했습니다. (Bybiy)");
+                                                            var stringWriter = new StringWriter();
+                                                            e.printStackTrace(new PrintWriter(stringWriter));
+                                                            var errorMsg = "15-fail-JsonProcessingException. " + memberApi.getApiKey() + ", 다시 실제 거래내역 조회를 실패했습니다. (Bybiy)";
+                                                            log.error(errorMsg);
+                                                            var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                    new SlackNotificationLog(
+                                                                            null,
+                                                                            slackNotification,
+                                                                            targetSetRequestPath,
+                                                                            targetSetMethodName,
+                                                                            errorMsg,
+                                                                            stringWriter.toString(),
+                                                                            LocalDateTime.now()
+                                                                    )
+                                                            );
+                                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                         }
 
                                                     } else {
-                                                        // Slack 알람
-                                                        log.error("15-fail-2. " + memberApi.getApiKey() + ", 다시 실제 거래내역 조회를 실패했습니다. (Bybit)");
+                                                        var errorMsg = "15-fail-2. " + memberApi.getApiKey() + ", 다시 실제 거래내역 조회를 실패했습니다. (Bybit)";
+                                                        log.error(errorMsg);
+                                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                new SlackNotificationLog(
+                                                                        null,
+                                                                        slackNotification,
+                                                                        targetSetRequestPath,
+                                                                        targetSetMethodName,
+                                                                        errorMsg,
+                                                                        "",
+                                                                        LocalDateTime.now()
+                                                                )
+                                                        );
+                                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                     }
-
                                                 } else {
-                                                    // Slack 알람
-                                                    log.error("12-fail-2. " + memberApi.getApiKey() + "내가 가진 비트 코인 조회를 실패했습니다. (bybit) Ret_code: " + bybitMyWallet.getRet_code() + "(" +bybitMyWallet.getRet_msg() + ")");
+                                                    var errorMsg = "12-fail-2. " + memberApi.getApiKey() + "내가 가진 비트 코인 조회를 실패했습니다. (bybit) Ret_code: " + bybitMyWallet.getRet_code() + "(" +bybitMyWallet.getRet_msg() + ")";
+                                                    log.error(errorMsg);
+                                                    var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                            new SlackNotificationLog(
+                                                                    null,
+                                                                    slackNotification,
+                                                                    targetSetRequestPath,
+                                                                    targetSetMethodName,
+                                                                    errorMsg,
+                                                                    "",
+                                                                    LocalDateTime.now()
+                                                            )
+                                                    );
+                                                    SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                 }
 
                                             } catch (JsonProcessingException e) {
-                                                // Slack 알람
-                                                log.error("12-fail-JsonProcessingException. " + memberApi.getApiKey() + "내가 가진 비트 코인 데이터 변환을 실패했습니다. (bybit)");
+                                                var stringWriter = new StringWriter();
+                                                e.printStackTrace(new PrintWriter(stringWriter));
+                                                var errorMsg = "12-fail-JsonProcessingException. " + memberApi.getApiKey() + "내가 가진 비트 코인 데이터 변환을 실패했습니다. (bybit)";
+                                                log.error(errorMsg);
+                                                var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                        new SlackNotificationLog(
+                                                                null,
+                                                                slackNotification,
+                                                                targetSetRequestPath,
+                                                                targetSetMethodName,
+                                                                errorMsg,
+                                                                stringWriter.toString(),
+                                                                LocalDateTime.now()
+                                                        )
+                                                );
+                                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                             }
                                         }
 
                                     } else {
-                                        log.error("9-fail. " + memberApi.member.getApis() + " 나의 주문 리스트 조회를 실패했습니다. Ret_code: " + bybitOrderList.getRet_code() + "(" +bybitOrderList.getRet_msg() + ")");
+                                        var errorMsg = "9-fail. " + memberApi.member.getApis() + " 나의 주문 리스트 조회를 실패했습니다. Ret_code: " + bybitOrderList.getRet_code() + "(" +bybitOrderList.getRet_msg() + ")";
+                                        log.error(errorMsg);
+                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                new SlackNotificationLog(
+                                                        null,
+                                                        slackNotification,
+                                                        targetSetRequestPath,
+                                                        targetSetMethodName,
+                                                        errorMsg,
+                                                        "",
+                                                        LocalDateTime.now()
+                                                )
+                                        );
+                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                     }
-
                                 } catch (JsonProcessingException e) {
-                                    // Slack 알림
-                                    log.error("9-fail-JsonProcessingException. memberApi.member.getApis() + \" 나의 주문 리스트 데이터 변환을 실패했습니다. (ByBit)");
+                                    var stringWriter = new StringWriter();
+                                    e.printStackTrace(new PrintWriter(stringWriter));
+                                    var errorMsg = "9-fail-JsonProcessingException. "+ memberApi.member.getApis() + " 나의 주문 리스트 데이터 변환을 실패했습니다. (ByBit)";
+                                    log.error(errorMsg);
+                                    var slackNotificationLog =  slackNotificationLogRepository.save(
+                                            new SlackNotificationLog(
+                                                    null,
+                                                    slackNotification,
+                                                    targetSetRequestPath,
+                                                    targetSetMethodName,
+                                                    errorMsg,
+                                                    stringWriter.toString(),
+                                                    LocalDateTime.now()
+                                            )
+                                    );
+                                    SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                 }
                             } else {
-                                // Slack 알람
-                                log.info("8-fail. " + memberApi.member.getApis() + " 나의 주문 리스트 조회를 실패했습니다. (ByBit)");
+                                var errorMsg = "8-fail. " + memberApi.member.getApis() + " 나의 주문 리스트 조회를 실패했습니다. (ByBit)";
+                                log.error(errorMsg);
+                                var slackNotificationLog =  slackNotificationLogRepository.save(
+                                        new SlackNotificationLog(
+                                                null,
+                                                slackNotification,
+                                                targetSetRequestPath,
+                                                targetSetMethodName,
+                                                errorMsg,
+                                                "",
+                                                LocalDateTime.now()
+                                        )
+                                );
+                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                             }
                         }
                 );
             }
         }
-        return resultList;
+
+        log.info("--------- [완료]");
+        result.setTraces(resultTraceList);
+        return result;
     }
 
     /**
