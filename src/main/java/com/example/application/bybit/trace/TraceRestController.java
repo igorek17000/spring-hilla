@@ -1,12 +1,11 @@
 package com.example.application.bybit.trace;
 
+import com.example.application.bybit.trace.dto.response.TraceExitSetResult;
 import com.example.application.bybit.trace.dto.response.TraceTargetSetResult;
-import com.example.application.bybit.trace.entity.Trace;
+import com.example.application.bybit.trace.enums.EXIT_RESULT;
 import com.example.application.bybit.trace.enums.TARGET_RESULT;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -33,19 +32,14 @@ public class TraceRestController {
     }
 
     @GetMapping("/exit/set")
-    public List<Trace> traceExitSet(
+    public TraceExitSetResult traceExitSet(
             @RequestParam(name = "minuteBong", defaultValue = "0") Integer minuteBong
     ){
         if (minuteBong.equals(0)) {
-            return null;
+            return new TraceExitSetResult(EXIT_RESULT.NO_MEMBER);
         }
 
-        var traces = traceService.traceExitSet(minuteBong);
-        if (traces.size() == 0) {
-            return null;
-        }
-
-        return traces;
+        return  traceService.traceExitSet(minuteBong);
     }
 
 }

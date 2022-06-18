@@ -49,7 +49,7 @@ public class Trace {
     public List<TraceExit> traceExits = new ArrayList<>();
 
     @OneToMany(mappedBy = "trace", cascade = CascadeType.REMOVE)
-    public List<TraceRate> traceRates = new ArrayList<>();
+    public List<TraceExitRate> traceExitsRates = new ArrayList<>();
 
     @CreationTimestamp
     private LocalDateTime createDate;

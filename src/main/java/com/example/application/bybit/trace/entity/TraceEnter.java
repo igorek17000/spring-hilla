@@ -1,5 +1,7 @@
 package com.example.application.bybit.trace.entity;
 
+import com.example.application.bybit.trace.dto.response.BybitMyOrderCancelData;
+import com.example.application.bybit.trace.dto.response.BybitMyOrderData;
 import com.example.application.bybit.trace.dto.response.BybitOrderData;
 import com.example.application.bybit.trace.enums.*;
 import lombok.AllArgsConstructor;
@@ -52,7 +54,7 @@ public class TraceEnter {
     @UpdateTimestamp
     private LocalDateTime updateDate;
     public TraceEnter(BybitOrderData result) {
-        this.userId = result.user_id;
+        this.userId = result.getUser_id();
         this.price = result.getPrice();
         this.qty = result.getQty();
         this.orderId = result.getOrder_id();
@@ -64,4 +66,32 @@ public class TraceEnter {
         this.orderStatus = ORDER_STATUS.valueOf(result.getOrder_status());
         this.createDate = LocalDateTime.now();
     }
+    public void setting(BybitMyOrderData result){
+        this.userId = result.getUser_id();
+        this.price = Double.valueOf(result.getPrice());
+        this.qty = Integer.valueOf(result.getQty());
+        this.orderId = result.getOrder_id();
+        this.orderLinkId = result.getOrder_link_id();
+        this.orderType = result.getOrder_type();
+        this.timeInForce = result.getTime_in_force();
+        this.side = result.getSide();
+        this.symbol = result.getSymbol();
+        this.orderStatus = result.getOrder_status();
+    }
+
+    public void setting(BybitMyOrderCancelData result){
+        this.userId = result.getUser_id();
+        this.price = result.getPrice();
+        this.qty = result.getQty();
+        this.orderId = result.getOrder_id();
+        this.orderLinkId = result.getOrder_link_id();
+        this.orderType = ORDER_TYPE.valueOf(result.getOrder_type());
+        this.timeInForce = TIME_IN_FORCE.valueOf(result.getTime_in_force());
+        this.side = SIDE.valueOf(result.getSide());
+        this.symbol = SYMBOL.valueOf(result.getSymbol());
+        this.orderStatus = ORDER_STATUS.valueOf(result.getOrder_status());
+    }
+
+
+
 }

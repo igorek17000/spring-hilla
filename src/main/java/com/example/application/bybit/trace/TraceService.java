@@ -36,7 +36,7 @@ public class TraceService {
     private final TraceRepository traceRepository;
     private final TraceExitRepository traceExitRepository;
     private final TraceEnterRepository traceEnterRepository;
-    private final TraceRateRepository traceRateRepository;
+    private final TraceExitRateRepository traceExitRateRepository;
     private final MemberRepository memberRepository;
     private final MemberApiRepository memberApiRepository;
     private final BongBaseRepository bongBaseRepository;
@@ -65,7 +65,7 @@ public class TraceService {
             Double basePrice
     ) {
 
-        log.info("1. resultList: 결과값 Return 해주기 위한 변수");
+        log.info("1. result: 결과값 Return 해주기 위한 변수, resultTraceList: 설정이 된 값을 Return 해주기 위한 변수");
         var result = new TraceTargetSetResult();
         var resultTraceList = new ArrayList<Trace>();
 
@@ -624,12 +624,22 @@ public class TraceService {
      * @return List<Trace>
      */
     @Transactional
-    public List<Trace> traceExitSet(Integer minuteBong) {
+    public TraceExitSetResult traceExitSet(Integer minuteBong) {
 
         var objectMapper = new ObjectMapper();
 
-        log.info("1. resultList: 결과값 Return 해주기 위한 데이터");
-        var resultList = new ArrayList<Trace>();
+        log.info("1. result: 결과값 Return 해주기 위한 변수, resultTraceList: 설정이 된 값을 Return 해주기 위한 변수");
+        var resultTraceList = new ArrayList<Trace>();
+        var result = new TraceExitSetResult();
+
+        log.info("Slack 알림 설정을 위한 세팅");
+        var slackNotificationOptional = slackNotificationRepository.findById(1);
+        if (slackNotificationOptional.isEmpty()){
+            result.setResult(EXIT_RESULT.NO_SLACK);
+            return result;
+        }
+        var slackNotification = slackNotificationOptional.get();
+
 
         log.info("2. traces: DB 상으로 거래가 시작 안된 리스트 조회");
         var traces = traceRepository.findByStartFlagAndMinuteBong(false, minuteBong);
@@ -637,21 +647,47 @@ public class TraceService {
         log.info("3. 봉 수익,손절 퍼센트 기준, 구매 중지 데이터 가져오기");
         var bongBaseOptional = bongBaseRepository.findByMinuteBong(minuteBong);
         if (bongBaseOptional.isEmpty()){
-            // Slack 알람
-            log.error("3-fail. " + minuteBong + "진입 데이터가 없습니다.");
-            return resultList;
+            var errorMsg = "3-fail. " + minuteBong + "진입 데이터가 없습니다.";
+            log.error(errorMsg);
+            var slackNotificationLog =  slackNotificationLogRepository.save(
+                    new SlackNotificationLog(
+                            null,
+                            slackNotification,
+                            exitSetRequestPath,
+                            exitSetMethodName,
+                            errorMsg,
+                            "",
+                            LocalDateTime.now()
+                    )
+            );
+            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+
+            result.setResult(EXIT_RESULT.NO_BONG_TARGET_BASE);
+            return result;
         }
 
         log.info("3-1. 청산 기준 퍼센트 기준 확인");
         if (bongBaseOptional.get().getExitRates().size() == 0) {
-            // Slack 알람
-            log.error("3-1-fail. "+ minuteBong + "청산 퍼센트 기준 데이터가 없습니다.");
-            return resultList;
+            var errorMsg = "3-1-fail. "+ minuteBong + "청산 퍼센트 기준 데이터가 없습니다.";
+            log.error(errorMsg);
+            var slackNotificationLog =  slackNotificationLogRepository.save(
+                    new SlackNotificationLog(
+                            null,
+                            slackNotification,
+                            exitSetRequestPath,
+                            exitSetMethodName,
+                            errorMsg,
+                            "",
+                            LocalDateTime.now()
+                    )
+            );
+            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+            result.setResult(EXIT_RESULT.NO_BONG_EXIT_BASE);
+            return result;
         }
 
         log.info("bongBase: 청산, 진입 기준 데이터");
         var bongBase = bongBaseOptional.get();
-
 
         traces.forEach(
                 trace -> {
@@ -688,63 +724,195 @@ public class TraceService {
                             try {
                                 var bybitMyOrder = objectMapper.readValue(responseOrderList.getBody().toString(), BybitMyOrder.class);
                                 if (!bybitMyOrder.getRet_code().equals(0)) {
-                                    // Slack 알림
-                                    log.error("6-fail. [Bybit Rest] 나의 주문 리스트 조회 실패 Ret_code: " + bybitMyOrder.getRet_code() + "(" +bybitMyOrder.getRet_msg() + ")");
+                                    var errorMsg = "6-fail. [Bybit Rest] 나의 주문 리스트 조회 실패 Ret_code: " + bybitMyOrder.getRet_code() + "(" +bybitMyOrder.getRet_msg() + ")";
+                                    log.error(errorMsg);
+                                    var slackNotificationLog =  slackNotificationLogRepository.save(
+                                            new SlackNotificationLog(
+                                                    null,
+                                                    slackNotification,
+                                                    exitSetRequestPath,
+                                                    exitSetMethodName,
+                                                    errorMsg,
+                                                    "",
+                                                    LocalDateTime.now()
+                                            )
+                                    );
+                                    SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                 } else {
 
                                     var bybitMyOrderResult = bybitMyOrder.getResult();
                                     var myOrderDataList = bybitMyOrderResult.getData();
 
                                     if (myOrderDataList == null || myOrderDataList.size() == 0) {
-                                        // Slack 알림
-                                        log.error("6-fail-3. [Bybit Rest] 조회된 내역 리스트가 없습니다.");
+                                        var errorMsg = "6-fail-3. [Bybit Rest] 조회된 내역 리스트가 없습니다.";
+                                        log.error(errorMsg);
+                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                new SlackNotificationLog(
+                                                        null,
+                                                        slackNotification,
+                                                        exitSetRequestPath,
+                                                        exitSetMethodName,
+                                                        errorMsg,
+                                                        "",
+                                                        LocalDateTime.now()
+                                                )
+                                        );
+                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                     } else {
                                         log.info("7. 비트코인 구매 내역 조회");
                                         var traceEnterList = trace.getTraceEnters();
                                         if(traceEnterList.size() == 0) {
-                                            // Slack
-                                            log.error("7-fail. " + trace.getIdx() + " 구매 내역 데이터가 올바르지 않습니다. Trace Idx(" + trace.getIdx() + ") 진입한 데이터가 없습니다.");
+                                            var errorMsg = "7-fail. " + trace.getIdx() + " 구매 내역 데이터가 올바르지 않습니다. Trace Idx(" + trace.getIdx() + ") 진입한 데이터가 없습니다.";
+                                            log.error(errorMsg);
+                                            var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                    new SlackNotificationLog(
+                                                            null,
+                                                            slackNotification,
+                                                            exitSetRequestPath,
+                                                            exitSetMethodName,
+                                                            errorMsg,
+                                                            "",
+                                                            LocalDateTime.now()
+                                                    )
+                                            );
+                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                         } else {
-
-
-
                                             log.info("9. Bybit 주문된 리스트와 DB상 리스트와 비교");
                                             log.info("myOrderDataListFilled: 완전 구매 내역의 리스트");
                                             var myOrderDataListFilled
                                                     = myOrderDataList.stream()
                                                         .filter(data -> data.getOrder_status().equals(ORDER_STATUS.Filled))
+                                                        .distinct()
                                                         .collect(Collectors.toList());
 
 
                                             log.info("myOrderDataListPartiallyFilled: 부분 구매 완료내역의 리스트");
                                             var myOrderDataListPartiallyFilled
                                                     = myOrderDataList.stream()
-                                                    .filter(data -> data.getOrder_status().equals(ORDER_STATUS.PartiallyFilled))
-                                                    .collect(Collectors.toList());
+                                                        .filter(data -> data.getOrder_status().equals(ORDER_STATUS.PartiallyFilled))
+                                                        .distinct()
+                                                        .collect(Collectors.toList());
 
                                             var deleteTraceEnter = new ArrayList<TraceEnter>();
                                             traceEnterList.forEach(
                                                     traceEnter -> {
-
                                                         if (!myOrderDataListFilled.stream()
                                                                 .map(BybitMyOrderData::getOrder_id)
                                                                 .collect(Collectors.toList())
                                                                 .contains(traceEnter.getOrderId())) {
 
                                                             log.info("정상 구매가 되지않았을 경우");
-
-                                                            // TODO 일부만 구매 되었을 경우 [금액 조정, qty 조정]
-                                                            log.info("부분 구매가 된 경우");
+                                                            log.info("10. 부분 구매가 된 경우");
                                                             if (myOrderDataListPartiallyFilled.stream()
                                                                     .map(BybitMyOrderData::getOrder_id)
                                                                     .collect(Collectors.toList())
                                                                     .contains(traceEnter.getOrderId())) {
 
-                                                                // TODO 작업
-                                                                log.info("취소 처리하고 수량 조절");
+                                                                var myOrderDataMatchList = myOrderDataListPartiallyFilled
+                                                                        .stream()
+                                                                        .filter(bybitMyOrderData -> bybitMyOrderData.getOrder_id().equals(traceEnter.getOrderId()))
+                                                                        .distinct()
+                                                                        .collect(Collectors.toList());
+
+                                                                if (myOrderDataMatchList.size() != 1 ) {
+                                                                    var dataMsg = new StringBuilder();
+                                                                    var idx = 1;
+                                                                    for (var orderData : myOrderDataMatchList) {
+                                                                        dataMsg.append(idx);
+                                                                        dataMsg.append(":");
+                                                                        dataMsg.append(orderData.toString());
+                                                                        dataMsg.append(",  ");
+                                                                        idx += 1;
+                                                                    }
+                                                                    var errorMsg = "10-fail. MyOrderData의 데이터가 이상이 있습니다. " + dataMsg;
+                                                                    log.error(errorMsg);
+                                                                    var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                            new SlackNotificationLog(
+                                                                                    null,
+                                                                                    slackNotification,
+                                                                                    exitSetRequestPath,
+                                                                                    exitSetMethodName,
+                                                                                    errorMsg,
+                                                                                    "",
+                                                                                    LocalDateTime.now()
+                                                                            )
+                                                                    );
+                                                                    SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                                                                } else {
+
+                                                                    var myOrderDataMatch = myOrderDataMatchList.get(0);
+
+                                                                    log.info("11. [Bybit] 취소 처리하고 수량 조절");
+                                                                    var orderCancelResponse = BybitOrderUtil.order_cancel (
+                                                                            memberApi.getApiKey(),
+                                                                            memberApi.getSecretKey(),
+                                                                            myOrderDataMatch.getOrder_id()
+                                                                    );
+
+                                                                    if (orderCancelResponse == null || (!HttpStatus.OK.equals(orderCancelResponse.getStatusCode())) || orderCancelResponse.getBody() == null) {
+                                                                        var errorMsg = "11-fail. " + memberApi.getApiKey() + "," +  myOrderDataMatch.getOrder_id() + " 주문 취소 실패";
+                                                                        log.error(errorMsg);
+                                                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                                new SlackNotificationLog(
+                                                                                        null,
+                                                                                        slackNotification,
+                                                                                        exitSetRequestPath,
+                                                                                        exitSetMethodName,
+                                                                                        errorMsg,
+                                                                                        null,
+                                                                                        LocalDateTime.now()
+                                                                                )
+                                                                        );
+                                                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                                                                    } else {
+
+                                                                        try {
+                                                                            var bybitMyOrderCancel = objectMapper.readValue(orderCancelResponse.getBody().toString(), BybitMyOrderCancel.class);
+                                                                            if (bybitMyOrderCancel.getRet_code() != 0) {
+                                                                                var errorMsg = "11-fail-2. " + memberApi.getApiKey() + "," + myOrderDataMatch.getOrder_id() + " 주문 취소 실패 (Bybit) Ret_code: " + bybitMyOrderCancel.getRet_code() + "(" + bybitMyOrderCancel.getRet_msg() + ")";
+                                                                                log.error(errorMsg);
+                                                                                var slackNotificationLog = slackNotificationLogRepository.save(
+                                                                                        new SlackNotificationLog(
+                                                                                                null,
+                                                                                                slackNotification,
+                                                                                                exitSetRequestPath,
+                                                                                                exitSetMethodName,
+                                                                                                errorMsg,
+                                                                                                "",
+                                                                                                LocalDateTime.now()
+                                                                                        )
+                                                                                );
+                                                                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                                                                            } else {
+                                                                                // TODO
+                                                                                // 부분 금액 취소 되었을 시 값이 어떻게 들어오는지 확인해야함
+                                                                                // 만약 취소라는 상태가 들어오면 완료라고 변경해줘야함
+                                                                                log.info("12. 부분 금액 취소로 인한 수량 조절 DB Update");
+                                                                                traceEnter.setting(bybitMyOrderCancel.getResult());
+                                                                            }
+                                                                        } catch (JsonProcessingException e) {
+                                                                            var stringWriter = new StringWriter();
+                                                                            e.printStackTrace(new PrintWriter(stringWriter));
+                                                                            var errorMsg = "11-fail-JsonProcessingException. " + memberApi.getApiKey() + "," + myOrderDataMatch.getOrder_id() + " 주문 취소 데이터 변환 (Bybit)";
+                                                                            log.error(errorMsg);
+                                                                            var slackNotificationLog = slackNotificationLogRepository.save(
+                                                                                    new SlackNotificationLog(
+                                                                                            null,
+                                                                                            slackNotification,
+                                                                                            exitSetRequestPath,
+                                                                                            exitSetMethodName,
+                                                                                            errorMsg,
+                                                                                            stringWriter.toString(),
+                                                                                            LocalDateTime.now()
+                                                                                    )
+                                                                            );
+                                                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                                                                        }
+                                                                    }
+                                                                }
 
                                                             } else {
-                                                                log.info("부분 구매도 안된 데이터는 삭제");
+                                                                log.info("13. 부분 구매도 안된 데이터는 삭제");
                                                                 deleteTraceEnter.add(traceEnter);
                                                             }
 
@@ -753,39 +921,58 @@ public class TraceService {
                                                         } else {
 
                                                             log.info("정상 구매가 완료되었을 때");
-                                                            log.info("DB <-> Bybit 데이터가 맞는지 확인 후 일치화 시켜야함");
-                                                            // TODO 작업
+                                                            log.info("14. DB <-> Bybit 데이터가 맞는지 확인 후 일치화 시켜야함");
+                                                            var myOrderDataMatchList = myOrderDataListFilled
+                                                                    .stream()
+                                                                    .filter(bybitMyOrderData -> bybitMyOrderData.getOrder_id().equals(traceEnter.getOrderId()))
+                                                                    .distinct()
+                                                                    .collect(Collectors.toList());
+
+                                                            if (myOrderDataMatchList.size() != 1 ) {
+                                                                var dataMsg = new StringBuilder();
+                                                                var idx = 1;
+                                                                for (var orderData : myOrderDataMatchList) {
+                                                                    dataMsg.append(idx);
+                                                                    dataMsg.append(":");
+                                                                    dataMsg.append(orderData.toString());
+                                                                    dataMsg.append(",  ");
+                                                                    idx += 1;
+                                                                }
+                                                                log.error("14-fail. MyOrderData의 데이터가 이상이 있습니다. " + dataMsg);
+                                                            } else {
+                                                                log.info("15. DB 일치화");
+                                                                var myOrderDataMatch = myOrderDataMatchList.get(0);
+                                                                traceEnter.setting(myOrderDataMatch);
+                                                            }
                                                         }
                                                     }
                                             );
 
-                                            log.info("부분 구매도 안된 데이터는 삭제 (DB)");
+                                            log.info("16. 부분 구매도 안된 데이터는 삭제 (DB)");
                                             traceEnterRepository.deleteAll(deleteTraceEnter);
 
-                                            // TODO 작업
-                                            log.info("8. 거래 데이터에 봉 수익, 손절 퍼센트 기준, 구매 중지 데이터 저장");
 
-                                            // TODO Trace 값 수정 (lossPrice, enterEndRate, lossRate)
+                                            log.info("17. 진입 금액 처리가 남아있는지 확인");
+                                            if (trace.getTraceEnters().stream().anyMatch(traceEnter -> !traceEnter.getOrderStatus().equals(ORDER_STATUS.Filled))) {
+                                                var errorMsg = "17-fail. 확인 필요 [진입 금액이 남아있는 경우] Trace Idx: " + trace.getIdx();
+                                                log.error(errorMsg);
+                                                var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                        new SlackNotificationLog(
+                                                                null,
+                                                                slackNotification,
+                                                                exitSetRequestPath,
+                                                                exitSetMethodName,
+                                                                errorMsg,
+                                                                "",
+                                                                LocalDateTime.now()
+                                                        )
+                                                );
+                                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                                            } else {
 
-                                            log.info("qty: 비율 계산 해야함(올림)");
-                                            log.info("addQty: 누적으로 계산한뒤 총 qty 에서 마지막 전 데이터까지 누적 qty 를 빼주기 위해 계산");
-                                            int totalQty = traceEnterList.stream().map(TraceEnter::getQty).reduce(0, Integer::sum);
-                                            var addQty = 0;
-
-                                            for ( var exitRate : exitRates ) {
-
-                                                log.info("청산 exitQty");
-                                                var exitQty = 0;
-
-                                                if (exitRate.getSort() == exitRates.size()) {
-                                                    exitQty = totalQty - addQty;
-                                                    log.info("exitQty Last: " + exitQty);
-                                                } else {
-                                                    var traceRate = exitRate.getTraceRate();
-                                                    exitQty = (int) Math.ceil(exitQty * ((double) traceRate / 100));
-                                                    addQty += exitQty;
-                                                    log.info("exitQty (" + exitRate.getSort() + "): " + exitQty + "(" + addQty + ")");
-                                                }
+                                                log.info("8. 진입 데이터에 봉 수익, 손절 퍼센트 기준, 구매 중지 데이터 저장");
+                                                trace.setLossRate(bongBase.getLossRate());
+                                                trace.setEnterEndRate(bongBase.getEnterEndRate());
 
                                                 log.info("[목표가 계산하기]");
                                                 log.info("Buy  = 현재가 + ( 현재가 - 기준(저점) )");
@@ -794,79 +981,205 @@ public class TraceService {
                                                 var basePrice   = trace.getBasePrice(); /* 기준(저점, 고점) */
                                                 var targetPrice = isBuy ? price + (price - basePrice) : price - (basePrice - price); /* 목표가 */
 
-
-                                                log.info("[청산 금액, 손절 금액 계산하기]");
+                                                log.info("[손절 금액 계산하기]");
                                                 log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
-                                                var exitPrice = basePrice + (targetPrice - basePrice) * exitRate.getExitRate();
-                                                var lossPrice = basePrice + (targetPrice - basePrice) * exitRate.getLossRate();
+                                                trace.setLossPrice(basePrice + (targetPrice - basePrice) * trace.getLossRate());
 
-                                                log.info("[Bybit Rest] 청산 지정가" );
-                                                log.info("Buy -> Sell, Sell -> Buy 반대로 지정해야함");
-                                                var responseEntity = BybitOrderUtil.order(
-                                                        memberApi.getApiKey(),
-                                                        memberApi.getSecretKey(),
-                                                        exitQty,
-                                                        isBuy ? SIDE.Sell : SIDE.Buy,
-                                                        TIME_IN_FORCE.PostOnly,
-                                                        exitPrice,
-                                                        ORDER_TYPE.Limit
-                                                );
 
-                                                if (responseEntity == null || !responseEntity.getStatusCode().equals(HttpStatus.OK) || responseEntity.getBody() == null) {
-                                                    // Slack 알림
-                                                    log.error("청산 지정가 조회 실패" + memberApi.getMember() + ", exitQty: " + exitQty + "exitPrice: " + exitPrice + " 청산를 실패했습니다. (Bybit)");
-                                                } else {
+                                                log.info("18. 판매 데이터 qty: 비율 계산 해야함 (올림)");
+                                                log.info("addQty: 누적으로 계산한뒤 총 qty 에서 마지막 전 데이터까지 누적 qty 를 빼주기 위해 계산");
+                                                int totalQty = traceEnterList.stream().map(TraceEnter::getQty).reduce(0, Integer::sum);
+                                                var addQty = 0;
 
-                                                    try {
-                                                        var bybitOrder = objectMapper.readValue(responseEntity.getBody().toString(), BybitOrder.class);
-                                                        if (bybitOrder.getRet_code() != 0) {
-                                                            // Slack 알림
-                                                            log.error("청산 지정가 실패" + memberApi.getMember() + ", exitQty: "
-                                                                    + exitQty + "exitPrice: " + exitPrice + " 청산을 실패했습니다. (Bybit)  Ret_code: "
-                                                                    + bybitOrder.getRet_code() + "(" +bybitOrder.getRet_msg() + ")");
+                                                var saveTraceRateList = new ArrayList<TraceExitRate>();
 
-                                                        } else {
+                                                for ( var exitRate : exitRates ) {
 
-                                                            log.info("정상 처리되었을시 저장");
-                                                            var traceBaseListParam = new TraceExit(bybitOrder.getResult(), exitRate.getSort());
-                                                            var traceBaseList = traceExitRepository.save(traceBaseListParam);
+                                                    log.info("청산 exitQty");
+                                                    var exitQty = 0;
 
-                                                            log.info("손절 금액 설정");
-                                                            traceBaseList.setStopLossPrice(lossPrice);
-                                                            traceBaseList.setTrace(trace);
+                                                    if (exitRate.getSort() == exitRates.size()) {
+                                                        exitQty = totalQty - addQty;
+                                                        log.info("exitQty Last: " + exitQty);
+                                                    } else {
+                                                        var traceRate = exitRate.getTraceRate();
+                                                        exitQty = (int) Math.ceil(exitQty * ((double) traceRate / 100));
+                                                        addQty += exitQty;
+                                                        log.info("exitQty (" + exitRate.getSort() + "): " + exitQty + "(" + addQty + ")");
+                                                    }
 
-                                                            trace.getTraceExits().add(traceBaseList);
+                                                    log.info("[청산 금액, 손절 금액 계산하기]");
+                                                    log.info("계산식 = 저점 + (목표가 - 저점) * 비율");
+                                                    var exitPrice = basePrice + (targetPrice - basePrice) * exitRate.getExitRate();
+                                                    var lossPrice = basePrice + (targetPrice - basePrice) * exitRate.getLossRate();
+
+                                                    log.info("19. [Bybit Rest] 청산 지정가" );
+                                                    log.info("Buy -> Sell, Sell -> Buy 반대로 지정해야함");
+                                                    var responseEntity = BybitOrderUtil.order(
+                                                            memberApi.getApiKey(),
+                                                            memberApi.getSecretKey(),
+                                                            exitQty,
+                                                            isBuy ? SIDE.Sell : SIDE.Buy,
+                                                            TIME_IN_FORCE.PostOnly,
+                                                            exitPrice,
+                                                            ORDER_TYPE.Limit
+                                                    );
+
+                                                    if (responseEntity == null || !responseEntity.getStatusCode().equals(HttpStatus.OK) || responseEntity.getBody() == null) {
+                                                        var errorMsg = "19-fail. 청산 지정가 조회 실패" + memberApi.getMember() + ", exitQty: " + exitQty + "exitPrice: " + exitPrice + " 청산를 실패했습니다. (Bybit)";
+                                                        log.error(errorMsg);
+                                                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                new SlackNotificationLog(
+                                                                        null,
+                                                                        slackNotification,
+                                                                        exitSetRequestPath,
+                                                                        exitSetMethodName,
+                                                                        errorMsg,
+                                                                        "",
+                                                                        LocalDateTime.now()
+                                                                )
+                                                        );
+                                                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                                                    } else {
+
+                                                        try {
+                                                            var bybitOrder = objectMapper.readValue(responseEntity.getBody().toString(), BybitOrder.class);
+                                                            if (bybitOrder.getRet_code() != 0) {
+                                                                var errorMsg = "19-fail-2. 청산 지정가 실패" + memberApi.getMember() + ", exitQty: "
+                                                                        + exitQty + "exitPrice: " + exitPrice + " 청산을 실패했습니다. (Bybit)  Ret_code: "
+                                                                        + bybitOrder.getRet_code() + "(" +bybitOrder.getRet_msg() + ")";
+                                                                log.error(errorMsg);
+                                                                var slackNotificationLog =  slackNotificationLogRepository.save(
+                                                                        new SlackNotificationLog(
+                                                                                null,
+                                                                                slackNotification,
+                                                                                exitSetRequestPath,
+                                                                                exitSetMethodName,
+                                                                                errorMsg,
+                                                                                "",
+                                                                                LocalDateTime.now()
+                                                                        )
+                                                                );
+                                                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                                                            } else {
+
+                                                                log.info("20. 청산 정상 처리되었을시 [DB] 저장");
+                                                                var traceExitParam = new TraceExit(bybitOrder.getResult(), exitRate.getSort());
+                                                                var traceExit = traceExitRepository.save(traceExitParam);
+
+                                                                log.info("21. 청산 손절 금액 설정");
+                                                                traceExit.setStopLossPrice(lossPrice);
+                                                                traceExit.setTrace(trace);
+                                                                trace.getTraceExits().add(traceExit);
+
+                                                                log.info("22. 청산 금액 설정 당시 비율 저장");
+                                                                saveTraceRateList.add(
+                                                                        new TraceExitRate(
+                                                                                null,
+                                                                                null, exitRate.getExitRate(),
+                                                                                exitRate.getTraceRate(),
+                                                                                exitRate.getLossRate(),
+                                                                                exitRate.getSort(),
+                                                                                LocalDateTime.now(),
+                                                                                null
+                                                                        )
+                                                                );
+                                                            }
+
+                                                        } catch (JsonProcessingException e){
+                                                            var stringWriter = new StringWriter();
+                                                            e.printStackTrace(new PrintWriter(stringWriter));
+                                                            var errorMsg = "19-fail-JsonProcessingException." + memberApi.getMember() + ", exitQty: " + exitQty + "exitPrice: " + exitPrice + " 청산을 실패했습니다. Json 변환 실패 (Bybit)";
+                                                            log.error(errorMsg);
+                                                            var slackNotificationLog = slackNotificationLogRepository.save(
+                                                                    new SlackNotificationLog(
+                                                                            null,
+                                                                            slackNotification,
+                                                                            exitSetRequestPath,
+                                                                            exitSetMethodName,
+                                                                            errorMsg,
+                                                                            stringWriter.toString(),
+                                                                            LocalDateTime.now()
+                                                                    )
+                                                            );
+                                                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                                                         }
-
-                                                    }catch (JsonProcessingException e){
-                                                        // Slack 알림
-                                                        log.error("" + memberApi.getMember() + ", exitQty: " + exitQty + "exitPrice: " + exitPrice + " 청산을 실패했습니다. Json 변환 실패 (Bybit)");
                                                     }
                                                 }
-                                            }
 
-                                            log.info("청산 처리가 완료된 경우 저장 결과값 리턴 저장");
-                                            trace.setStartFlag(true);
-                                            resultList.add(trace);
+                                                log.info("23. 청산 처리가 완료된 경우 후 비율 저장 [DB]");
+                                                if (saveTraceRateList.size() > 0) {
+                                                    var traceExitRateList = traceExitRateRepository.saveAll(saveTraceRateList);
+                                                    traceExitRateList.forEach(traceExitRate -> {
+                                                        traceExitRate.setTrace(trace);
+                                                        trace.getTraceExitsRates().add(traceExitRate);
+                                                    });
+                                                }
+
+
+                                                log.info("24. 청산 처리가 완료된 경우 저장 결과값 리턴 저장");
+                                                trace.setStartFlag(true);
+                                                resultTraceList.add(trace);
+
+                                            }
                                         }
                                     }
                                 }
                             } catch (JsonProcessingException e) {
-                                // Slack 알림
-                                log.error("6-fail-JsonProcessingException. [Bybit Rest] 나의 주문 리스트 데이터 변환 실패: " + memberApi.getApiKey());
+                                var stringWriter = new StringWriter();
+                                e.printStackTrace(new PrintWriter(stringWriter));
+                                var errorMsg = "6-fail-JsonProcessingException. [Bybit Rest] 나의 주문 리스트 데이터 변환 실패: " + memberApi.getApiKey();
+                                log.error(errorMsg);
+                                var slackNotificationLog = slackNotificationLogRepository.save(
+                                        new SlackNotificationLog(
+                                                null,
+                                                slackNotification,
+                                                exitSetRequestPath,
+                                                exitSetMethodName,
+                                                errorMsg,
+                                                stringWriter.toString(),
+                                                LocalDateTime.now()
+                                        )
+                                );
+                                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                             }
                         } else {
-                            // Slack 알람
-                            log.error("6-fail-2. [Bybit Rest] 나의 주문 리스트 조회 실패");
+                            var errorMsg = "6-fail-2. [Bybit Rest] 나의 주문 리스트 조회 실패";
+                            log.error(errorMsg);
+                            var slackNotificationLog =  slackNotificationLogRepository.save(
+                                    new SlackNotificationLog(
+                                            null,
+                                            slackNotification,
+                                            exitSetRequestPath,
+                                            exitSetMethodName,
+                                            errorMsg,
+                                            "",
+                                            LocalDateTime.now()
+                                    )
+                            );
+                            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                         }
 
                     } else {
-                        // Slack 알림
-                        log.error("5-fail. 회원의 Api Key 를 찾을 수 없습니다." + member.getIdx());
+                        var errorMsg = "5-fail. 회원의 Api Key 를 찾을 수 없습니다." + member.getIdx();
+                        log.error(errorMsg);
+                        var slackNotificationLog =  slackNotificationLogRepository.save(
+                                new SlackNotificationLog(
+                                        null,
+                                        slackNotification,
+                                        exitSetRequestPath,
+                                        exitSetMethodName,
+                                        errorMsg,
+                                        "",
+                                        LocalDateTime.now()
+                                )
+                        );
+                        SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
                     }
                 }
         );
 
-        return resultList;
+        result.setTraces(resultTraceList);
+        return result;
     }
 }

@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class TraceRate {
+public class TraceExitRate {
     @Id
     @GeneratedValue
     private Integer idx;
@@ -24,7 +24,7 @@ public class TraceRate {
     @JoinColumn(name = "trace_idx", referencedColumnName = "idx")
     private Trace trace;
 
-    private Double rate;
+    private Double exitRate;
     private Integer traceRate;
     private Double lossRate;
     private Integer sort;

@@ -27,4 +27,25 @@ public class BybitMyOrderData {
     private String trade_id;
     private Long cross_seq;
 
+    @Override
+    public String toString() {
+        return "BybitMyOrderData{ " +
+                "user_id=" + user_id +
+                ", order_status=" + order_status +
+                ", symbol=" + symbol +
+                ", side=" + side +
+                ", order_type=" + order_type +
+                ", price='" + price + '\'' +
+                ", qty='" + qty + '\'' +
+                ", time_in_force=" + time_in_force +
+                ", order_link_id='" + order_link_id + '\'' +
+                ", order_id='" + order_id + '\'' +
+                ", timestamp='" + timestamp + '\'' +
+                ", trade_time_ms=" + trade_time_ms +
+                ", size=" + size +
+                ", tick_direction=" + tick_direction +
+                ", trade_id='" + trade_id + '\'' +
+                ", cross_seq=" + cross_seq +
+                '}';
+    }
 }

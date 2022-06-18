@@ -33,3 +33,4 @@
 2. traceTargetSet 종료안된 시점에서 traceExitSet 실행하면 안됨
 3. 항상 실행되고 있음 individual_check
 4. 판매할때도 안팔릴시 어떻게 처리할지 생각해봐야함
+5. traceExitSet는 List Size가 0일때까지 계속 실행해야함
