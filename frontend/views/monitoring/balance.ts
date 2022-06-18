@@ -20,12 +20,12 @@ export class BalanceView extends View {
   render() {
     return html`
             <div class="p-m">
-             <h3>Balance</h3>
+             <h3>잔액</h3>
              <vaadin-grid .items="${this.balances}" theme="row-stripes" style="max-width: 800px">
-              <vaadin-grid-column width="200px" path="minute" ></vaadin-grid-column>
-              <vaadin-grid-column width="200px" path="btc"></vaadin-grid-column>
-              <vaadin-grid-column width="200px" path="usd"></vaadin-grid-column>
-               <vaadin-grid-column width="200px" path="won"></vaadin-grid-column>
+              <vaadin-grid-column header="분봉" width="200px" path="minute" ></vaadin-grid-column>
+              <vaadin-grid-column header="비트코인" width="200px" path="btc"></vaadin-grid-column>
+              <vaadin-grid-column header="달러" width="200px" path="usd"></vaadin-grid-column>
+               <vaadin-grid-column header="원화" width="200px" path="won"></vaadin-grid-column>
              </vaadin-grid>
             </div>
     `;

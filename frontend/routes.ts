@@ -22,7 +22,7 @@ export const views: ViewRoute[] = [
     path: 'balance',
     component: 'balance-view',
     icon: 'la la-list-alt',
-    title: 'Balance',
+    title: '잔액',
   },
     // TODO TRACE 데이터 생기면 주석 제거
   // {
@@ -35,7 +35,7 @@ export const views: ViewRoute[] = [
     path: 'execute',
     component: 'execute-view',
     icon: 'la la-list-alt',
-    title: 'Execute List',
+    title: '거래내역 단건 조회',
   },
 ];
 export const routes: ViewRoute[] = [
