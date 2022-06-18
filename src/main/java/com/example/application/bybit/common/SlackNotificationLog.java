@@ -1,4 +1,4 @@
-package com.example.application.bybit.trace.entity;
+package com.example.application.bybit.common;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -12,23 +12,26 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
-
-public class TraceFailLog {
-
+@AllArgsConstructor
+public class SlackNotificationLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "idx", nullable = false)
-    private Long idx;
+    private Integer idx;
 
+    @ManyToOne
+    @JoinColumn(name = "notification_idx", referencedColumnName = "idx")
+    public SlackNotification slackNotification;
+
+    private String requestPath;
     private String methodName;
 
     @Lob
-    private String data;
+    private String message;
 
     @Lob
-    private String errorLog;
+    private String data;
 
     @CreationTimestamp
     private LocalDateTime createDate;

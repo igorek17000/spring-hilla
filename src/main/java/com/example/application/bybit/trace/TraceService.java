@@ -35,7 +35,6 @@ public class TraceService {
     private final MemberRepository memberRepository;
     private final MemberApiRepository memberApiRepository;
     private final BongBaseRepository bongBaseRepository;
-    private final TraceFailLog traceFailLog;
 
     /**
      * 진입 금액 세팅
