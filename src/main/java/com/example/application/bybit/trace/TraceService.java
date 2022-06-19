@@ -40,14 +40,103 @@ public class TraceService {
     private final MemberRepository memberRepository;
     private final MemberApiRepository memberApiRepository;
     private final BongBaseRepository bongBaseRepository;
+    private final BongRepository bongRepository;
     private final SlackNotificationRepository slackNotificationRepository;
     private final SlackNotificationLogRepository slackNotificationLogRepository;
 
 
     private final String targetSetRequestPath = "/trace/target/set";
-    private final String exitSetRequestPath   = "/exit/set";
+    private final String exitSetRequestPath   = "/trace/exit/set";
+    private final String checkRequestPath  = "/trace/check";
     private final String exitSetMethodName    = "traceExitSet";
     private final String targetSetMethodName  = "traceTargetSet";
+    private final String checkMethodName    = "check";
+
+    /**
+     * 소켓 최초 실행시 값 확인
+     * @param minuteBong 봉
+     */
+    public CheckResult check (Integer minuteBong) {
+        var result = new CheckResult();
+
+        log.info("Slack 알림 설정을 위한 세팅");
+        var slackNotificationOptional = slackNotificationRepository.findById(1);
+        if (slackNotificationOptional.isEmpty()){
+            result.setResult(CHECK_RESULT.NO_SLACK);
+            return result;
+        }
+        var slackNotification = slackNotificationOptional.get();
+
+        log.info("1. 진입 세팅 중인 값이 있는지 확인");
+        var traceEnterSetList
+                = traceRepository.findByStartFlagAndEndFlagAndMinuteBong(false, false, minuteBong);
+        if (traceEnterSetList.size() > 0) {
+            result.setResult(CHECK_RESULT.ENTER_SET);
+            return result;
+        }
+
+
+
+        var traceSetCompletionList
+                = traceRepository.findByStartFlagAndEndFlagAndMinuteBong(true, false, minuteBong);
+
+        log.info("2. 청산 세팅 중인 값이 있는지 확인");
+        log.info("청산 데이터와 청산 비율 기준 데이터가 같지 않거나 청산, 비율 데이터가 없는 경우");
+        log.info("[원래는 데이터 값이 같아야만 true 가 되는 것이 맞는데 안맞다면 오류]");
+        for (var trace : traceSetCompletionList) {
+            var exitListSize = trace.getTraceExits().size();
+
+            if (exitListSize == 0 || (trace.getTraceExits().size() != trace.getTraceExitsRates().size())) {
+                var errorMsg = "2-fail. IDX: " + trace.getIdx() + " 청산 데이터 세팅이 이상합니다.";
+                log.error(errorMsg);
+                var slackNotificationLog =  slackNotificationLogRepository.save(
+                        new SlackNotificationLog(
+                                null,
+                                slackNotification,
+                                checkRequestPath,
+                                checkMethodName,
+                                errorMsg,
+                                null,
+                                LocalDateTime.now()
+                        )
+                );
+                SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+                result.setResult(CHECK_RESULT.EXIT_SET_ERROR);
+                return result;
+            }
+        }
+
+        log.info("3. 진입, 청산 세팅 후 진행 중인 값이 있는지 확인");
+        if (traceSetCompletionList.size() > 0) {
+            result.setResult(CHECK_RESULT.SET_COMPLETION);
+            return result;
+        }
+
+        log.info("4. 봉 데이터 값이 있는지 확인");
+        var bongList = bongRepository.findByMinuteBong(minuteBong);
+        if (bongList.size() == 0) {
+            var errorMsg = "4-fail. 봉 데이터 존재하지 않습니다.";
+            log.error(errorMsg);
+            var slackNotificationLog =  slackNotificationLogRepository.save(
+                    new SlackNotificationLog(
+                            null,
+                            slackNotification,
+                            checkRequestPath,
+                            checkMethodName,
+                            errorMsg,
+                            null,
+                            LocalDateTime.now()
+                    )
+            );
+            SlackNotificationUtil.send(errorMsg, slackNotification.getUrl(), slackNotificationLog);
+            result.setResult(CHECK_RESULT.NO_BONG);
+            return result;
+        }
+
+        log.info("5. 봉 데이터 추가 완료");
+        result.getBongList().addAll(bongList);
+        return result;
+    }
 
     /**
      * 진입 금액 세팅
@@ -619,7 +708,7 @@ public class TraceService {
     }
 
     /**
-     * 진입 금액이 맞는지 확인 후 청산 금액 세팅
+     * 진입 금액 체크 후 청산 금액 세팅
      * @param minuteBong 봉
      * @return List<Trace>
      */

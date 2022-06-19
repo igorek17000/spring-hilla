@@ -10,4 +10,5 @@ public interface TraceRepository extends JpaRepository<Trace, Integer> {
     Optional<Trace> findByStartFlagAndEndFlagAndMinuteBongAndMember_Idx(boolean startFlag, boolean endFlag, Integer minuteBong, Integer member_idx);
     Optional<Trace> findByStartFlagAndMinuteBongAndMember_Idx(boolean startFlag, Integer minuteBong, Integer member_idx);
     List<Trace> findByStartFlagAndMinuteBong(boolean startFlag, Integer minuteBong);
+    List<Trace> findByStartFlagAndEndFlagAndMinuteBong(boolean startFlag, boolean endFlag, Integer minuteBong);
 }
