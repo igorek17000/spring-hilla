@@ -55,8 +55,8 @@ export class ExecuteView extends View {
   }
 
   async firstUpdated() {
-    this.execute15minutes = await getExecute(1);
+    this.execute15minutes = await getExecute(15);
     this.execute5minutes = await getExecute(5);
-    this.execute1minutes = await getExecute(15);
+    this.execute1minutes = await getExecute(1);
   }
 }
