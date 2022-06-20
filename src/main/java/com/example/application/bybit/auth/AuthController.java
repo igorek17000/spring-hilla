@@ -14,14 +14,4 @@ public class AuthController {
     public void register(@RequestBody MemberRegisterDTO memberRegisterDTO){
         authService.register(memberRegisterDTO);
     }
-
-    @GetMapping("/test")
-    public String test(){
-        return "test";
-    }
-
-    @PostMapping("/test")
-    public String postTest(){
-        return "test";
-    }
 }

@@ -25,30 +25,30 @@ export class ExecuteView extends View {
         <h3>1 Minute</h3>
         <vaadin-grid .items="${this.execute1minutes}" theme="row-stripes" style="max-width: 1500px">
 <!--          <vaadin-grid-column path="minute"></vaadin-grid-column>-->
-          <vaadin-grid-column header="코인명" path="contracts" ></vaadin-grid-column>
-          <vaadin-grid-column header="구매/판매 여부" path="execute_type"></vaadin-grid-column>
-          <vaadin-grid-column header="주문 수량" path="qty"></vaadin-grid-column>
-          <vaadin-grid-column header="주문 금액" path="order_price"></vaadin-grid-column>
-          <vaadin-grid-column header="거래 시간" path="trade_time"></vaadin-grid-column>
+          <vaadin-grid-column header="코인명(symbol)" path="contracts" ></vaadin-grid-column>
+          <vaadin-grid-column header="구매/판매 여부(execute type)" path="execute_type"></vaadin-grid-column>
+          <vaadin-grid-column header="주문 수량(USD)(execute qty)" path="qty"></vaadin-grid-column>
+          <vaadin-grid-column header="주문 가격(execute price)" path="exec_price"></vaadin-grid-column>
+          <vaadin-grid-column header="거래 시간(trade time)" path="trade_time"></vaadin-grid-column>
         </vaadin-grid>
 
         <h3>5 Minute</h3>
         <vaadin-grid .items="${this.execute5minutes}" theme="row-stripes" style="max-width: 1500px">
 <!--          <vaadin-grid-column path="minute"></vaadin-grid-column>-->
-          <vaadin-grid-column header="코인명" path="contracts" ></vaadin-grid-column>
-          <vaadin-grid-column header="구매/판매 여부" path="execute_type"></vaadin-grid-column>
-          <vaadin-grid-column header="주문 수량" path="qty"></vaadin-grid-column>
-          <vaadin-grid-column header="주문 금액" path="order_price"></vaadin-grid-column>
-          <vaadin-grid-column header="거래 시간" path="trade_time"></vaadin-grid-column>
+          <vaadin-grid-column header="코인명(symbol)" path="contracts" ></vaadin-grid-column>
+          <vaadin-grid-column header="구매/판매 여부(execute type)" path="execute_type"></vaadin-grid-column>
+          <vaadin-grid-column header="주문 수량(USD)(execute qty)" path="qty"></vaadin-grid-column>
+          <vaadin-grid-column header="주문 가격(execute price)" path="exec_price"></vaadin-grid-column>
+          <vaadin-grid-column header="거래 시간(trade time)" path="trade_time"></vaadin-grid-column>
         </vaadin-grid>
 
         <h3>15 Minute</h3>
         <vaadin-grid .items="${this.execute15minutes}" theme="row-stripes" style="max-width: 1500px">
-          <vaadin-grid-column header="코인명" path="contracts" ></vaadin-grid-column>
-          <vaadin-grid-column header="구매/판매 여부" path="execute_type"></vaadin-grid-column>
-          <vaadin-grid-column header="주문 수량" path="qty"></vaadin-grid-column>
-          <vaadin-grid-column header="주문 금액" path="order_price"></vaadin-grid-column>
-          <vaadin-grid-column header="거래 시간" path="trade_time"></vaadin-grid-column>
+          <vaadin-grid-column header="코인명(symbol)" path="contracts" ></vaadin-grid-column>
+          <vaadin-grid-column header="구매/판매 여부(execute type)" path="execute_type"></vaadin-grid-column>
+          <vaadin-grid-column header="주문 수량(USD)(execute qty)" path="qty"></vaadin-grid-column>
+          <vaadin-grid-column header="주문 가격(execute price)" path="exec_price"></vaadin-grid-column>
+          <vaadin-grid-column header="거래 시간(trade time)" path="trade_time"></vaadin-grid-column>
         </vaadin-grid>
       </div>
     `;

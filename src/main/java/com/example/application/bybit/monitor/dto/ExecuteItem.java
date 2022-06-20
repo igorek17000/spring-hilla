@@ -13,7 +13,7 @@ public class ExecuteItem {
     private String execute_type;
     private String contracts;
     private String qty;
-    private String order_price;
+    private String exec_price;
     private String exit_type;
     private String trade_time;
 

@@ -210,7 +210,6 @@ public class MonitorEndpoint {
                 HashMap<String, Map<String, List<Map<String, Object>>>> body = om.readValue(response.getBody().toString(), HashMap.class);
 
                 var list = body.get("result").get("trade_list");
-
                 var decFormat = new DecimalFormat("###,###");
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 for (var m : list
@@ -220,8 +219,8 @@ public class MonitorEndpoint {
                                 minute,
                                 m.get("side").toString(),
                                 m.get("symbol").toString(),
-                                m.get("order_qty").toString(),
-                                decFormat.format(Double.parseDouble(m.get("order_price").toString())),
+                                decFormat.format(Double.parseDouble(m.get("exec_qty").toString())),
+                                decFormat.format(Double.parseDouble(m.get("exec_price").toString())),
                                 m.get("exec_type").toString(),
                                 format.format(new Date(Long.parseLong(m.get("exec_time").toString())*1000))
                         );

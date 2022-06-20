@@ -267,16 +267,17 @@ public class BybitOrderUtil {
         map.put("api_key",   apiKey);
         map.put("timestamp", ZonedDateTime.now().toInstant().toEpochMilli()+"");
         map.put("symbol", "BTCUSD");
+        map.put("order","desc");
+        map.put("limit","200");
 
         try {
             var queryString = BybitEncryption.genQueryString(map, secretKey);
-
             var template = new RestTemplate();
             var response = template.getForEntity(
                     execution_list + queryString,
                     String.class
             );
-
+            System.out.println(response);
             var body = response.getBody();
 
             log.info("execution_list: " + response.getStatusCode());
