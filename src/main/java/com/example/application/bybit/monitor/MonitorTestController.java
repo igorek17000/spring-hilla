@@ -37,14 +37,8 @@ public class MonitorTestController {
         var restTemplate = new RestTemplate();
         var member = memberApiRepository.findByMemberIdx(1);
 
-        for (var api:member
-             ) {
-            var map = new TreeMap<String, String>(
-                    new Comparator<String>() {
-                        public int compare(String obj1, String obj2) {
-                            return obj1.compareTo(obj2);
-                        }
-                    });
+        for (var api: member) {
+            var map = new TreeMap<String, String>(String::compareTo);
 
             map.put("coin", "BTC"); // USD, KRW 는 symbol 없음, 가격 받아서 계산 해야됌
             map.put("timestamp", ZonedDateTime.now().toInstant().toEpochMilli()+"");
