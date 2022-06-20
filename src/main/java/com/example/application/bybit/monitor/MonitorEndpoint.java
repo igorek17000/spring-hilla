@@ -14,6 +14,7 @@ import com.example.application.member.MemberApi;
 import com.example.application.member.MemberApiRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.helger.commons.state.EContinue;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import dev.hilla.Endpoint;
 import dev.hilla.Nonnull;
@@ -214,8 +215,13 @@ public class MonitorEndpoint {
                 var list = body.get("result").get("trade_list");
                 var decFormat = new DecimalFormat("###,###");
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+                if(list==null){
+                    return null;
+                }
                 for (var m : list
                 ) {
+
                     if (m.get("exec_type").equals("Trade")) {
                         ExecuteItem item = new ExecuteItem(
                                 minute,
