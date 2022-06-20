@@ -59,7 +59,6 @@ public class MonitorEndpoint {
         var balanceItems = new ArrayList<BalanceItem>();
         var restTemplate = new RestTemplate();
         var member = memberApiRepository.findByMemberUsername(principal.getUsername());
-
         for (MemberApi api:member
         ) {
             // BTC
@@ -87,8 +86,11 @@ public class MonitorEndpoint {
                 }
 
             }else{
-                HashMap<String,Map<String, Map<String,Double>>> body = om.readValue(response.getBody().toString(), HashMap.class);
-                var decimal = BigDecimal.valueOf(body.get("result").get("BTC").get("equity"));
+                HashMap<String,Map<String, Map<String,Object>>> body = om.readValue(response.getBody().toString(), HashMap.class);
+                if(body.get("result").get("BTC").get("equity").toString().equals("0")){
+                    continue;
+                }
+                var decimal = BigDecimal.valueOf(Double.parseDouble(body.get("result").get("BTC").get("equity").toString()));
 
                 // BTC to USD
                 var usdResponse = restTemplate.getForEntity("https://api.bybit.com/v2/public/tickers?symbol=BTCUSD",String.class);

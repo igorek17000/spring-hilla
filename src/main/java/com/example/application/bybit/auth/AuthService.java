@@ -17,6 +17,7 @@ public class AuthService {
                 .username(memberRegisterDTO.getUsername())
                 .password(encoder.encode(memberRegisterDTO.getPassword()))
                 .name(memberRegisterDTO.getName())
+                .traceYn("N")
                 .role("MEMBER")
                 .build());
     }
